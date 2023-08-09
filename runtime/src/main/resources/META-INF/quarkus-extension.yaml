@@ -1,0 +1,16 @@
+name: Microcks
+description: REST, GraphQL, gRPC API and SOAP mock endpoints and contract testing - directly from your specs
+metadata:
+  keywords:
+    - api
+    - mocking
+    - contract testing
+    - rest
+    - graphql
+    - grpc
+    - soap
+  guide: https://github.com/microcks/microcks-quarkus
+  categories:
+    - "web"
+    - "cloud"
+  status: "preview"
