@@ -12,7 +12,7 @@
     <module>runtime</module>
   </modules>
 
-  <name>Quarkus - Microcks Parent</name>
+  <name>Microcks Quarkus</name>
   <description>Microcks Quarkus extension</description>
   <url>http://microcks.github.io</url>
   <organization>
