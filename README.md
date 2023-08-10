@@ -2,7 +2,7 @@
 
 Quarkus extension that enables embedding Microcks as a DevService managing mocks for dependencies and contract-testing your API endpoints
 
-Want to see this extension in action? Check out our [sample application](https://github.com/microcks/api-lifecycle/tree/master/shift-left-demo/quakus-order-service). 🚀
+Want to see this extension in action? Check out our [sample application](https://github.com/microcks/api-lifecycle/tree/master/shift-left-demo/quarkus-order-service). 🚀
 
 [![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/microcks/microcks-quarkus/build-verify.yml?logo=github&style=for-the-badge)](https://github.com/microcks/microcks-quarkus/actions)
 [![Version](https://img.shields.io/maven-central/v/io.github.microcks.quarkus/quarkus-microcks?color=blue&style=for-the-badge)]((https://search.maven.org/artifact/io.github.microcks.quarkus/quarkus-microcks-parent))
