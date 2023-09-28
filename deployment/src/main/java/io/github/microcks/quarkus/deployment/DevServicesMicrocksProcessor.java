@@ -219,9 +219,6 @@ public class DevServicesMicrocksProcessor {
 
       Supplier<RunningDevService> defaultMicrocksSupplier = () -> {
          MicrocksContainer microcksContainer = new MicrocksContainer(dockerImageName);
-         // Set fixed ports if provided.
-         devServicesConfig.httpPort().ifPresent(microcksContainer::setHttpExposedPort);
-         devServicesConfig.grpcPort().ifPresent(microcksContainer::setGrpcExposedPort);
 
          // Configure access to host - getting test-port from config or defaulting to 8081.
          microcksContainer.withAccessToHost(true);

@@ -96,8 +96,8 @@ At development time or during your unit tests setup, you'd probably need to conf
 containers to set up your base API url calls. For that, you have to configure the host exposition port and change URLs in config:
 
 ```properties
-# Specify here the Mock URL provided by microcks devservices, referencing the quarkus.microcks.devservices.http-port
-quarkus.rest-client."org.acme.order.client.PastryAPIClient".url=http://localhost:${quarkus.microcks.devservices.http-port}/rest/API+Pastries/0.0.1
+# Specify here the Mock URL provided by microcks devservices, referencing the quarkus.microcks.default.http
+quarkus.rest-client."org.acme.order.client.PastryAPIClient".url=${quarkus.microcks.default.http}/rest/API+Pastries/0.0.1
 ```
 
 ### Launching new contract-tests
@@ -110,7 +110,7 @@ is automatically configured for being able to reach your local application on th
 @ConfigProperty(name= "quarkus.http.test-port")
 int quarkusHttpPort;
 
-@ConfigProperty(name= "quarkus.microcks.default")
+@ConfigProperty(name= "quarkus.microcks.default.http")
 String microcksContainerUrl;
 
 @Test

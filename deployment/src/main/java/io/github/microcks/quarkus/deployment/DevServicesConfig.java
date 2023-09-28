@@ -24,7 +24,6 @@ import io.smallrye.config.WithDefault;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.OptionalInt;
 
 /**
  * Configuration description for the DevServices of the Microcks Quarkus extension.
@@ -48,20 +47,6 @@ public interface DevServicesConfig {
     * Use an image based on or derived from: {@code quay.io/microcks/microcks-uber:latest}.
     */
    Optional<String> imageName();
-
-   /**
-    * Optional fixed port the dev service will listen to for Http endpoint.
-    * <p>
-    * If not defined, the port will be chosen randomly.
-    */
-   OptionalInt httpPort();
-
-   /**
-    * Optional fixed port the dev service will listen to for gRPC endpoint.
-    * <p>
-    * If not defined, the port will be chosen randomly.
-    */
-   OptionalInt grpcPort();
 
    /**
     * Indicates if the Microcks server managed by Quarkus Dev Services is shared.
