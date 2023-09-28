@@ -11,9 +11,9 @@ Want to see this extension in action? Check out our [sample application](https:/
 
 ## Build Status
 
-Latest released version is `0.1.0`.
+Latest released version is `0.1.1`.
 
-Current development version is `0.1.1-SNAPSHOT`.
+Current development version is `0.1.2-SNAPSHOT`.
 
 #### Sonarcloud Quality metrics
 
@@ -34,7 +34,7 @@ If you're using Maven:
 <dependency>
   <groupId>io.github.microcks.quarkus</groupId>
   <artifactId>quarkus-microcks</artifactId>
-  <version>0.1.0</version>
+  <version>0.1.1</version>
   <scope>provided</scope>
 </dependency>
 ```
@@ -60,7 +60,7 @@ Exposed URL is visible in the Quarkus startup logs:
 
 ```shell
 Listening for transport dt_socket at address: 5005
-2023-08-09 12:27:22,649 INFO  [io.git.mic.qua.dep.DevServicesMicrocksProcessor] (build-31) The 'default' microcks container is ready on http://localhost:9191
+2023-08-09 12:27:22,649 INFO  [io.git.mic.qua.dep.DevServicesMicrocksProcessor] (build-31) The 'default' microcks container is ready on http://localhost:65719
 __  ____  __  _____   ___  __ ____  ______ 
  --/ __ \/ / / / _ | / _ \/ //_/ / / / __/ 
  -/ /_/ / /_/ / __ |/ , _/ ,< / /_/ /\ \   
