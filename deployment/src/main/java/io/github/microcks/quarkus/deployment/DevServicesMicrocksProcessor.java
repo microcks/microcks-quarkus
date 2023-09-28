@@ -264,7 +264,8 @@ public class DevServicesMicrocksProcessor {
          String microcksHost = MICROCKS_SCHEME + (hostName != null ? hostName : microcksContainer.getHost())
                + ":" + microcksContainer.getMappedPort(MicrocksContainer.MICROCKS_HTTP_PORT);
 
-         RunningDevService devService = new RunningDevService("microcks", microcksContainer.getContainerId(), null, CONFIG_PREFIX + "default", microcksHost);
+         RunningDevService devService = new RunningDevService("microcks", microcksContainer.getContainerId(),
+               microcksContainer::close, CONFIG_PREFIX + "default", microcksHost);
          devServiceMicrocksContainerMap.put(devService, microcksContainer);
 
          return devService;
