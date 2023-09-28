@@ -127,3 +127,5 @@ public void testOpenAPIContract() throws Exception {
 ```
 
 The `TestResult` gives you access to all details regarding success of failure on different test cases.
+
+A comprehensive Quarkus demo application illustrating both usages is available here: [quarkus-order-service](https://github.com/microcks/api-lifecycle/tree/master/shift-left-demo/quarkus-order-service).
