@@ -53,9 +53,8 @@ You can explicitly disable Microcks DevService if you want save some resources a
 quarkus.microcks.devservices.enabled=false
 ```
 
-The local URL exposed by the Microcks container is automatically stored into the `quarkus.microcks.default` property.
-Http exposition port is chosen randomly excepted if you force it using the `quarkus.microcks.devservices.http-port` config
-(see below).
+The local URL exposed by the Microcks container Http port is automatically stored into the `quarkus.microcks.default.http` property.
+Microcks container also exposes a gRPC URL for gRPC services, it is store into the `quarkus.microcks.default.grpc` property.
 
 Exposed URL is visible in the Quarkus startup logs:
 
@@ -97,9 +96,6 @@ At development time or during your unit tests setup, you'd probably need to conf
 containers to set up your base API url calls. For that, you have to configure the host exposition port and change URLs in config:
 
 ```properties
-quarkus.microcks.devservices.http-port=9191
-quarkus.microcks.devservices.grpc-port=9292
-
 # Specify here the Mock URL provided by microcks devservices, referencing the quarkus.microcks.devservices.http-port
 quarkus.rest-client."org.acme.order.client.PastryAPIClient".url=http://localhost:${quarkus.microcks.devservices.http-port}/rest/API+Pastries/0.0.1
 ```

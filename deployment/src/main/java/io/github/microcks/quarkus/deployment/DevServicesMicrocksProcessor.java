@@ -73,6 +73,7 @@ public class DevServicesMicrocksProcessor {
    private static final String MICROCKS_UBER_NIGHTLY = "quay.io/microcks/microcks-uber:nightly";
    private static final String MICROCKS_SCHEME = "http://";
 
+   private static final String DEV_SERVICE_NAME = "microcks";
    /**
     * Label to add to shared Dev Service for Microcks running in containers.
     * This allows other applications to discover the running service and use it instead of starting a new instance.
@@ -82,6 +83,8 @@ public class DevServicesMicrocksProcessor {
    private static final ContainerLocator microcksContainerLocator = new ContainerLocator(DEV_SERVICE_LABEL, MicrocksContainer.MICROCKS_HTTP_PORT);
 
    private static final String CONFIG_PREFIX = "quarkus.microcks.";
+   private static final String HTTP_SUFFIX = ".http";
+   private static final String GRPC_SUFFIX = ".grpc";
 
    private static volatile DevServiceConfiguration capturedDevServicesConfig;
    private static volatile List<RunningDevService> devServices;
@@ -142,7 +145,7 @@ public class DevServicesMicrocksProcessor {
          } else {
             compressor.close();
             newDevServices.add(devService);
-            String configKey = CONFIG_PREFIX + "default";
+            String configKey = CONFIG_PREFIX + "default" + HTTP_SUFFIX;
             log.infof("The '%s' microcks container is ready on %s", "default", devService.getConfig().get(configKey));
          }
       } catch (Throwable t) {
@@ -184,8 +187,8 @@ public class DevServicesMicrocksProcessor {
       CardPageBuildItem cardPageBuildItem = new CardPageBuildItem();
 
       String microcksUIUrl = null;
-      if (devServices.size() > 0) {
-         microcksUIUrl = devServices.get(0).getConfig().get(CONFIG_PREFIX + "default");
+      if (!devServices.isEmpty()) {
+         microcksUIUrl = devServices.get(0).getConfig().get(CONFIG_PREFIX + "default" + HTTP_SUFFIX);
       }
 
       if (microcksUIUrl != null) {
@@ -237,7 +240,7 @@ public class DevServicesMicrocksProcessor {
          }
          String hostName = null;
          if (useSharedNetwork) {
-            hostName = ConfigureUtil.configureSharedNetwork(microcksContainer, "microcks");
+            hostName = ConfigureUtil.configureSharedNetwork(microcksContainer, DEV_SERVICE_NAME);
          }
          microcksContainer.start();
 
@@ -260,12 +263,15 @@ public class DevServicesMicrocksProcessor {
             }
          }
 
-         // Build the Microcks Host URL to put in properties.
-         String microcksHost = MICROCKS_SCHEME + (hostName != null ? hostName : microcksContainer.getHost())
+         // Build the Microcks Host URL + gRPC to put in properties.
+         String microcksHttpHost = MICROCKS_SCHEME + (hostName != null ? hostName : microcksContainer.getHost())
                + ":" + microcksContainer.getMappedPort(MicrocksContainer.MICROCKS_HTTP_PORT);
+         String microcksGrpcHost = MICROCKS_SCHEME + (hostName != null ? hostName : microcksContainer.getHost())
+               + ":" + microcksContainer.getMappedPort(MicrocksContainer.MICROCKS_GRPC_PORT);
 
-         RunningDevService devService = new RunningDevService("microcks", microcksContainer.getContainerId(),
-               microcksContainer::close, CONFIG_PREFIX + "default", microcksHost);
+         RunningDevService devService = new RunningDevService(DEV_SERVICE_NAME, microcksContainer.getContainerId(), microcksContainer::close,
+               Map.of(CONFIG_PREFIX + "default" + HTTP_SUFFIX, microcksHttpHost,
+                     CONFIG_PREFIX + "default" + GRPC_SUFFIX, microcksGrpcHost));
          devServiceMicrocksContainerMap.put(devService, microcksContainer);
 
          return devService;
@@ -274,7 +280,7 @@ public class DevServicesMicrocksProcessor {
       return microcksContainerLocator.locateContainer(devServicesConfig.serviceName(), devServicesConfig.shared(), launchMode)
             .map(containerAddress -> {
                String microcksUrl = MICROCKS_SCHEME + containerAddress.getUrl();
-               return new RunningDevService("microcks", containerAddress.getId(), null, CONFIG_PREFIX + "default", microcksUrl);
+               return new RunningDevService(DEV_SERVICE_NAME, containerAddress.getId(), null, CONFIG_PREFIX + "default" + HTTP_SUFFIX, microcksUrl);
             })
             .orElseGet(defaultMicrocksSupplier);
    }
