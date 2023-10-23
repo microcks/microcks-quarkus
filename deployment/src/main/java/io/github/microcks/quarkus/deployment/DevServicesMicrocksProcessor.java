@@ -70,7 +70,7 @@ import static io.quarkus.runtime.LaunchMode.DEVELOPMENT;
 public class DevServicesMicrocksProcessor {
 
    private static final Logger log = Logger.getLogger(DevServicesMicrocksProcessor.class);
-   private static final String MICROCKS_UBER_NIGHTLY = "quay.io/microcks/microcks-uber:nightly";
+   private static final String MICROCKS_UBER_NIGHTLY = "quay.io/microcks/microcks-uber:1.8.0";
    private static final String MICROCKS_SCHEME = "http://";
 
    private static final String DEV_SERVICE_NAME = "microcks";
