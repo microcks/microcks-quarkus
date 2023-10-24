@@ -85,6 +85,8 @@ public class DevServicesMicrocksProcessor {
    private static final String CONFIG_PREFIX = "quarkus.microcks.";
    private static final String HTTP_SUFFIX = ".http";
    private static final String GRPC_SUFFIX = ".grpc";
+   private static final String GRPC_HOST_SUFFIX = ".grpc.host";
+   private static final String GRPC_PORT_SUFFIX = ".grpc.port";
 
    private static volatile DevServiceConfiguration capturedDevServicesConfig;
    private static volatile List<RunningDevService> devServices;
@@ -261,14 +263,15 @@ public class DevServicesMicrocksProcessor {
          }
 
          // Build the Microcks Host URL + gRPC to put in properties.
-         String microcksHttpHost = MICROCKS_SCHEME + (hostName != null ? hostName : microcksContainer.getHost())
-               + ":" + microcksContainer.getMappedPort(MicrocksContainer.MICROCKS_HTTP_PORT);
-         String microcksGrpcHost = MICROCKS_SCHEME + (hostName != null ? hostName : microcksContainer.getHost())
-               + ":" + microcksContainer.getMappedPort(MicrocksContainer.MICROCKS_GRPC_PORT);
+         String visiblehost = (hostName != null ? hostName : microcksContainer.getHost());
+         String microcksHttpHost = MICROCKS_SCHEME + visiblehost + ":" + microcksContainer.getMappedPort(MicrocksContainer.MICROCKS_HTTP_PORT);
+         String microcksGrpcHost = MICROCKS_SCHEME + visiblehost + ":" + microcksContainer.getMappedPort(MicrocksContainer.MICROCKS_GRPC_PORT);
 
          RunningDevService devService = new RunningDevService(DEV_SERVICE_NAME, microcksContainer.getContainerId(), microcksContainer::close,
                Map.of(CONFIG_PREFIX + "default" + HTTP_SUFFIX, microcksHttpHost,
-                     CONFIG_PREFIX + "default" + GRPC_SUFFIX, microcksGrpcHost));
+                     CONFIG_PREFIX + "default" + GRPC_SUFFIX, microcksGrpcHost,
+                     CONFIG_PREFIX + "default" + GRPC_HOST_SUFFIX, visiblehost,
+                     CONFIG_PREFIX + "default" + GRPC_PORT_SUFFIX, microcksContainer.getMappedPort(MicrocksContainer.MICROCKS_GRPC_PORT).toString()));
          devServiceMicrocksContainerMap.put(devService, microcksContainer);
 
          return devService;
