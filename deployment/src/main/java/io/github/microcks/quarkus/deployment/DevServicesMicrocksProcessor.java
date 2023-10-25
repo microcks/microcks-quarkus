@@ -67,7 +67,7 @@ import static io.quarkus.runtime.LaunchMode.DEVELOPMENT;
 public class DevServicesMicrocksProcessor {
 
    private static final Logger log = Logger.getLogger(DevServicesMicrocksProcessor.class);
-   private static final String MICROCKS_UBER_NIGHTLY = "quay.io/microcks/microcks-uber:1.8.0";
+   private static final String MICROCKS_UBER_LATEST = "quay.io/microcks/microcks-uber:latest";
    private static final String MICROCKS_SCHEME = "http://";
 
    private static final String DEV_SERVICE_NAME = "microcks";
@@ -213,8 +213,8 @@ public class DevServicesMicrocksProcessor {
          return null;
       }
 
-      DockerImageName dockerImageName = DockerImageName.parse(devServicesConfig.imageName().orElse(MICROCKS_UBER_NIGHTLY))
-            .asCompatibleSubstituteFor(MICROCKS_UBER_NIGHTLY);
+      DockerImageName dockerImageName = DockerImageName.parse(devServicesConfig.imageName().orElse(MICROCKS_UBER_LATEST))
+            .asCompatibleSubstituteFor(MICROCKS_UBER_LATEST);
 
       Supplier<RunningDevService> defaultMicrocksSupplier = () -> {
          MicrocksContainer microcksContainer = new MicrocksContainer(dockerImageName);
