@@ -224,7 +224,10 @@ public class DevServicesMicrocksProcessor {
          Config globalConfig = ConfigProviderResolver.instance().getConfig();
          int testPort = globalConfig.getValue("quarkus.http.test-port", OptionalInt.class)
                .orElse(8081);
-         Testcontainers.exposeHostPorts(testPort);
+
+         if (testPort >= 0) {
+             Testcontainers.exposeHostPorts(testPort);
+         }
 
          // Add envs and timeout if provided.
          microcksContainer.withEnv(devServicesConfig.containerEnv());
