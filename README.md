@@ -11,9 +11,9 @@ Want to see this extension in action? Check out our [sample application](https:/
 
 ## Build Status
 
-Latest released version is `0.1.1`.
+Latest released version is `0.1.2`.
 
-Current development version is `0.1.2-SNAPSHOT`.
+Current development version is `0.1.3-SNAPSHOT`.
 
 #### Sonarcloud Quality metrics
 
@@ -34,7 +34,7 @@ If you're using Maven:
 <dependency>
   <groupId>io.github.microcks.quarkus</groupId>
   <artifactId>quarkus-microcks</artifactId>
-  <version>0.1.1</version>
+  <version>0.1.2</version>
   <scope>provided</scope>
 </dependency>
 ```
@@ -55,6 +55,7 @@ quarkus.microcks.devservices.enabled=false
 
 The local URL exposed by the Microcks container Http port is automatically stored into the `quarkus.microcks.default.http` property.
 Microcks container also exposes a gRPC URL for gRPC services, it is store into the `quarkus.microcks.default.grpc` property.
+For convenient usage of the Quarkus gRPC client, we also provide `quarkus.microcks.default.grpc.host` and `quarkus.microcks.default.grpc.port` properties.
 
 Exposed URL is visible in the Quarkus startup logs:
 
@@ -129,3 +130,14 @@ public void testOpenAPIContract() throws Exception {
 The `TestResult` gives you access to all details regarding success of failure on different test cases.
 
 A comprehensive Quarkus demo application illustrating both usages is available here: [quarkus-order-service](https://github.com/microcks/api-lifecycle/tree/master/shift-left-demo/quarkus-order-service).
+
+
+### Configure your Microcks image
+
+By default, Microcks DevService will use the `quay.io/microcks/microcks-uber:latest` image that is the latest stable one.
+However, you can specify a compatible image of your choice using the following property:
+
+```properties
+# Specify here the Microcks-uber image you want to use.
+quarkus.microcks.devservices.image-name=quay.io/microcks/microcks-uber:nightly
+```
