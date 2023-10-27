@@ -225,7 +225,7 @@ public class DevServicesMicrocksProcessor {
          int testPort = globalConfig.getValue("quarkus.http.test-port", OptionalInt.class)
                .orElse(8081);
 
-         if (testPort >= 0) {
+         if (testPort > 0) {
              Testcontainers.exposeHostPorts(testPort);
          }
 
