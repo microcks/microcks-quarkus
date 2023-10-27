@@ -81,6 +81,8 @@ public class DevServicesMicrocksProcessor {
 
    private static final String CONFIG_PREFIX = "quarkus.microcks.";
    private static final String HTTP_SUFFIX = ".http";
+   private static final String HTTP_HOST_SUFFIX = ".http.host";
+   private static final String HTTP_PORT_SUFFIX = ".http.port";
    private static final String GRPC_SUFFIX = ".grpc";
    private static final String GRPC_HOST_SUFFIX = ".grpc.host";
    private static final String GRPC_PORT_SUFFIX = ".grpc.port";
@@ -266,6 +268,8 @@ public class DevServicesMicrocksProcessor {
 
          RunningDevService devService = new RunningDevService(DEV_SERVICE_NAME, microcksContainer.getContainerId(), microcksContainer::close,
                Map.of(CONFIG_PREFIX + "default" + HTTP_SUFFIX, microcksHttpHost,
+                     CONFIG_PREFIX + "default" + HTTP_HOST_SUFFIX, visibleHost,
+                     CONFIG_PREFIX + "default" + HTTP_PORT_SUFFIX, microcksContainer.getMappedPort(MicrocksContainer.MICROCKS_HTTP_PORT).toString(),
                      CONFIG_PREFIX + "default" + GRPC_SUFFIX, microcksGrpcHost,
                      CONFIG_PREFIX + "default" + GRPC_HOST_SUFFIX, visiblehost,
                      CONFIG_PREFIX + "default" + GRPC_PORT_SUFFIX, microcksContainer.getMappedPort(MicrocksContainer.MICROCKS_GRPC_PORT).toString()));
