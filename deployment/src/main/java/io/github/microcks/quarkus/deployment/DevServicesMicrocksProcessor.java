@@ -268,10 +268,10 @@ public class DevServicesMicrocksProcessor {
 
          RunningDevService devService = new RunningDevService(DEV_SERVICE_NAME, microcksContainer.getContainerId(), microcksContainer::close,
                Map.of(CONFIG_PREFIX + "default" + HTTP_SUFFIX, microcksHttpHost,
-                     CONFIG_PREFIX + "default" + HTTP_HOST_SUFFIX, visibleHost,
+                     CONFIG_PREFIX + "default" + HTTP_HOST_SUFFIX, visiblehost,
                      CONFIG_PREFIX + "default" + HTTP_PORT_SUFFIX, microcksContainer.getMappedPort(MicrocksContainer.MICROCKS_HTTP_PORT).toString(),
                      CONFIG_PREFIX + "default" + GRPC_SUFFIX, microcksGrpcHost,
-                     CONFIG_PREFIX + "default" + GRPC_HOST_SUFFIX, visiblehost,
+                     CONFIG_PREFIX + "default" + GRPC_HOST_SUFFIX, visibleHost,
                      CONFIG_PREFIX + "default" + GRPC_PORT_SUFFIX, microcksContainer.getMappedPort(MicrocksContainer.MICROCKS_GRPC_PORT).toString()));
          devServiceMicrocksContainerMap.put(devService, microcksContainer);
 
