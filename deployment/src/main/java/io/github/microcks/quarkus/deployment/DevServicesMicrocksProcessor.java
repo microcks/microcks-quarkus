@@ -55,6 +55,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -324,7 +325,8 @@ public class DevServicesMicrocksProcessor {
    private boolean scanAndLoadArtifacts(MicrocksContainer microcksContainer, CurateOutcomeBuildItem outcomeBuildItem,
                                         List<String> validSuffixes, boolean primary) throws Exception {
       boolean foundSomething = false;
-      Collection<SourceDir> resourceDirs = outcomeBuildItem.getApplicationModel().getApplicationModule().getMainSources().getResourceDirs();
+      List<SourceDir> resourceDirs = new ArrayList<>();
+      resourceDirs.addAll(outcomeBuildItem.getApplicationModel().getApplicationModule().getMainSources().getResourceDirs());
       resourceDirs.addAll(outcomeBuildItem.getApplicationModel().getApplicationModule().getTestSources().getResourceDirs());
       for (SourceDir resourceDir : resourceDirs) {
          Set<String> filesPaths = collectFiles(resourceDir.getDir(), validSuffixes);
@@ -343,13 +345,16 @@ public class DevServicesMicrocksProcessor {
    }
 
    private Set<String> collectFiles(Path dir, List<String> validSuffixes) throws IOException {
-      try (Stream<Path> stream = Files.walk(dir, 2)) {
-         return stream
-               .filter(Files::isRegularFile)
-               .map(Path::toString)
-               .filter(candidate -> endsWithOneOf(candidate, validSuffixes))
-               .collect(Collectors.toSet());
+      if (Files.isDirectory(dir)) {
+         try (Stream<Path> stream = Files.walk(dir, 2)) {
+            return stream
+                  .filter(Files::isRegularFile)
+                  .map(Path::toString)
+                  .filter(candidate -> endsWithOneOf(candidate, validSuffixes))
+                  .collect(Collectors.toSet());
+         }
       }
+      return Collections.emptySet();
    }
 
    private boolean endsWithOneOf(String candidate, List<String> validSuffixes) {
