@@ -19,6 +19,7 @@ import io.github.microcks.quarkus.deployment.DevServicesConfig.ArtifactsConfigur
 import io.github.microcks.quarkus.deployment.MicrocksBuildTimeConfig.DevServiceConfiguration;
 import io.github.microcks.testcontainers.MicrocksContainer;
 
+import io.quarkus.bootstrap.workspace.SourceDir;
 import io.quarkus.deployment.IsDevelopment;
 import io.quarkus.deployment.IsNormal;
 import io.quarkus.deployment.annotations.BuildStep;
@@ -33,6 +34,7 @@ import io.quarkus.deployment.console.ConsoleInstalledBuildItem;
 import io.quarkus.deployment.console.StartupLogCompressor;
 import io.quarkus.deployment.dev.devservices.GlobalDevServicesConfig;
 import io.quarkus.deployment.logging.LoggingSetupBuildItem;
+import io.quarkus.deployment.pkg.builditem.CurateOutcomeBuildItem;
 import io.quarkus.devservices.common.ConfigureUtil;
 import io.quarkus.devservices.common.ContainerLocator;
 import io.quarkus.devui.spi.page.CardPageBuildItem;
@@ -46,15 +48,22 @@ import org.testcontainers.utility.DockerImageName;
 
 import java.io.Closeable;
 import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalInt;
+import java.util.Set;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static io.quarkus.runtime.LaunchMode.DEVELOPMENT;
 
@@ -87,6 +96,13 @@ public class DevServicesMicrocksProcessor {
    private static final String GRPC_HOST_SUFFIX = ".grpc.host";
    private static final String GRPC_PORT_SUFFIX = ".grpc.port";
 
+   /** List of extensions for detecting artifacts to import as primary ones. */
+   private static final List<String> PRIMARY_ARTIFACTS_EXTENSIONS = Arrays.asList("-openapi.yml", "-openapi.yaml", "-openapi.json",
+         ".proto", ".graphql", "-asyncapi.yml", "-asyncapi.yaml", "-asyncapi.json", "-soapui-project.xml");
+   /** List of extensions for detecting artifacts to import as secondary ones. */
+   private static final List<String> SECONDARY_ARTIFACTS_EXTENSIONS = Arrays.asList("postman-collection.json", "postman_collection.json",
+         "-metadata.yml", "-metadata.yaml", ".har");
+
    private static volatile DevServiceConfiguration capturedDevServicesConfig;
    private static volatile List<RunningDevService> devServices;
    private static volatile Map<RunningDevService, MicrocksContainer> devServiceMicrocksContainerMap;
@@ -103,6 +119,7 @@ public class DevServicesMicrocksProcessor {
          MicrocksBuildTimeConfig config,
          Optional<ConsoleInstalledBuildItem> consoleInstalledBuildItem,
          CuratedApplicationShutdownBuildItem closeBuildItem,
+         CurateOutcomeBuildItem outcomeBuildItem,
          LoggingSetupBuildItem loggingSetupBuildItem,
          GlobalDevServicesConfig devServicesConfig) {
 
@@ -138,11 +155,10 @@ public class DevServicesMicrocksProcessor {
             loggingSetupBuildItem);
       try {
          RunningDevService devService = startContainer(currentDevServicesConfig.devservices(), dockerStatusBuildItem,
-               launchMode.getLaunchMode(), !devServicesSharedNetworkBuildItem.isEmpty(), devServicesConfig.timeout);
+               launchMode.getLaunchMode(), outcomeBuildItem, !devServicesSharedNetworkBuildItem.isEmpty(), devServicesConfig.timeout);
 
          if (devService == null) {
             compressor.closeAndDumpCaptured();
-
          } else {
             compressor.close();
             newDevServices.add(devService);
@@ -203,7 +219,7 @@ public class DevServicesMicrocksProcessor {
    }
 
    private RunningDevService startContainer(DevServicesConfig devServicesConfig, DockerStatusBuildItem dockerStatusBuildItem,
-                                            LaunchMode launchMode, boolean useSharedNetwork, Optional<Duration> timeout) {
+                                            LaunchMode launchMode, CurateOutcomeBuildItem outcomeBuildItem, boolean useSharedNetwork, Optional<Duration> timeout) {
       if (!devServicesConfig.enabled()) {
          // explicitly disabled
          log.debug("Not starting devservices for Microcks as it has been disabled in the config");
@@ -228,7 +244,7 @@ public class DevServicesMicrocksProcessor {
                .orElse(8081);
 
          if (testPort > 0) {
-             Testcontainers.exposeHostPorts(testPort);
+            Testcontainers.exposeHostPorts(testPort);
          }
 
          // Add envs and timeout if provided.
@@ -237,7 +253,7 @@ public class DevServicesMicrocksProcessor {
 
          // Finalize label and shared network.
          if (launchMode == DEVELOPMENT) {
-           microcksContainer.withLabel(DEV_SERVICE_LABEL, devServicesConfig.serviceName());
+            microcksContainer.withLabel(DEV_SERVICE_LABEL, devServicesConfig.serviceName());
          }
          String hostName = null;
          if (useSharedNetwork) {
@@ -259,6 +275,14 @@ public class DevServicesMicrocksProcessor {
                      microcksContainer.importAsSecondaryArtifact(new File(secondaryArtifact));
                   }
                }
+            } catch (Exception e) {
+               log.error("Failed to load Artifacts in microcks", e);
+            }
+         } else {
+            try {
+               boolean found = scanAndLoadPrimaryArtifacts(microcksContainer, outcomeBuildItem);
+               // Continue with secondary artifacts only if we found something.
+               if (found) scanAndLoadSecondaryArtifacts(microcksContainer, outcomeBuildItem);
             } catch (Exception e) {
                log.error("Failed to load Artifacts in microcks", e);
             }
@@ -287,5 +311,53 @@ public class DevServicesMicrocksProcessor {
                return new RunningDevService(DEV_SERVICE_NAME, containerAddress.getId(), null, CONFIG_PREFIX + "default" + HTTP_SUFFIX, microcksUrl);
             })
             .orElseGet(defaultMicrocksSupplier);
+   }
+
+   private boolean scanAndLoadPrimaryArtifacts(MicrocksContainer microcksContainer, CurateOutcomeBuildItem outcomeBuildItem) throws Exception {
+      return scanAndLoadArtifacts(microcksContainer, outcomeBuildItem, PRIMARY_ARTIFACTS_EXTENSIONS, true);
+   }
+
+   private boolean scanAndLoadSecondaryArtifacts(MicrocksContainer microcksContainer, CurateOutcomeBuildItem outcomeBuildItem) throws Exception {
+      return scanAndLoadArtifacts(microcksContainer, outcomeBuildItem, SECONDARY_ARTIFACTS_EXTENSIONS, false);
+   }
+
+   private boolean scanAndLoadArtifacts(MicrocksContainer microcksContainer, CurateOutcomeBuildItem outcomeBuildItem,
+                                        List<String> validSuffixes, boolean primary) throws Exception {
+      boolean foundSomething = false;
+      Collection<SourceDir> resourceDirs = outcomeBuildItem.getApplicationModel().getApplicationModule().getMainSources().getResourceDirs();
+      resourceDirs.addAll(outcomeBuildItem.getApplicationModel().getApplicationModule().getTestSources().getResourceDirs());
+      for (SourceDir resourceDir : resourceDirs) {
+         Set<String> filesPaths = collectFiles(resourceDir.getDir(), validSuffixes);
+         for (String filePath : filesPaths) {
+            if (primary) {
+               log.infof("Load '%s' as primary artifact", filePath);
+               microcksContainer.importAsMainArtifact(new File(filePath));
+            } else {
+               log.infof("Load '%s' as secondary artifact", filePath);
+               microcksContainer.importAsSecondaryArtifact(new File(filePath));
+            }
+            foundSomething = true;
+         }
+      }
+      return foundSomething;
+   }
+
+   private Set<String> collectFiles(Path dir, List<String> validSuffixes) throws IOException {
+      try (Stream<Path> stream = Files.walk(dir, 2)) {
+         return stream
+               .filter(Files::isRegularFile)
+               .map(Path::toString)
+               .filter(candidate -> endsWithOneOf(candidate, validSuffixes))
+               .collect(Collectors.toSet());
+      }
+   }
+
+   private boolean endsWithOneOf(String candidate, List<String> validSuffixes) {
+      for (String validSuffix : validSuffixes) {
+         if (candidate.endsWith(validSuffix)) {
+            return true;
+         }
+      }
+      return false;
    }
 }

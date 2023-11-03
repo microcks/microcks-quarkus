@@ -79,12 +79,23 @@ You can also access to Microcks UI using the Quarkus DevUI on http://localhost:8
 
 ### Import content in Microcks
 
-To use Microcks mocks or contract-testing features, you first need to import OpenAPI, Postman Collection, GraphQL or gRPC 
-artifacts. Artifacts can be imported as main/primary ones or as secondary ones. 
-See [Multi-artifacts support](https://microcks.io/documentation/using/importers/#multi-artifacts-support) for details.
+To use Microcks mocks or contract-testing features, you first need to import OpenAPI, Postman Collection, GraphQL, gRPC, HAR or
+SoapUI artifacts. Artifacts can be imported as main/primary ones or as secondary ones. 
+See [Multi-artifacts support](https://microcks.io/documentation/using/importers/#multi-artifacts-support) for details. 
+Import is done automatically at container startup depending on your configuration.
 
-This is done automatically at container startup depending on your configuration. Use the `artifact.primaries` and `artifact.secondaries` for that.
-They are comma-separated lists of paths to your OpenAPI, GraphQL, gRPC, SoapUI or Postman artifacts.
+By default, Microcks DevService automatically discover and load artifacts found in main resources folders (typically `src/main/resources`)
+and test resources folders (typically `src/test/resources`).
+In order to find the correct artifacts and make difference between primary and secondary ones, the DevService relies on naming conventions:
+* All the files named `*-openapi.yml`, `*-openapi.yaml`, `*-openapi.json` will be imported as **primary** artifacts,
+* All the files named `*-asyncapi.yml`, `*-asyncapi.yaml`, `*-asyncapi.json` will be imported as **primary** artifacts,
+* All the files named `*.proto`, `*.graphql`, `*-soapui-project.xml` will also be imported as **primary** artifacts,
+* All the files named `*postman-collection.json`, `*postman_collection.json` will be imported as **secondary** artifacts
+* All the files named `*.har` will be imported as **secondary** artifacts,
+* All the files named `*-metadata.yml`, `*-metadata.yaml` will also be imported as **secondary** artifacts,
+
+If you want/need a fine control on what's loaded in container, you may use the `artifact.primaries` and `artifact.secondaries` 
+configuration properties for that. They are comma-separated lists of paths to your OpenAPI, Postman, GraphQL, gRPC, HAR, or SoapUI artifacts.
 
 ```properties
 quarkus.microcks.devservices.artifacts.primaries=target/classes/order-service-openapi.yaml,target/test-classes/third-parties/apipastries-openapi.yaml
