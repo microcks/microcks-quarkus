@@ -11,9 +11,9 @@ Want to see this extension in action? Check out our [sample application](https:/
 
 ## Build Status
 
-Latest released version is `0.1.2`.
+Latest released version is `0.1.3`.
 
-Current development version is `0.1.3-SNAPSHOT`.
+Current development version is `0.1.4-SNAPSHOT`.
 
 #### Sonarcloud Quality metrics
 
@@ -34,7 +34,7 @@ If you're using Maven:
 <dependency>
   <groupId>io.github.microcks.quarkus</groupId>
   <artifactId>quarkus-microcks</artifactId>
-  <version>0.1.2</version>
+  <version>0.1.3</version>
   <scope>provided</scope>
 </dependency>
 ```
@@ -55,7 +55,8 @@ quarkus.microcks.devservices.enabled=false
 
 The local URL exposed by the Microcks container Http port is automatically stored into the `quarkus.microcks.default.http` property.
 Microcks container also exposes a gRPC URL for gRPC services, it is store into the `quarkus.microcks.default.grpc` property.
-For convenient usage of the Quarkus gRPC client, we also provide `quarkus.microcks.default.grpc.host` and `quarkus.microcks.default.grpc.port` properties.
+For convenient usage of the Quarkus gRPC client or other libraries, we also provide `quarkus.microcks.default.http.host`, 
+`quarkus.microcks.default.http.port`, `quarkus.microcks.default.grpc.host` and `quarkus.microcks.default.grpc.port` properties.
 
 Exposed URL is visible in the Quarkus startup logs:
 
