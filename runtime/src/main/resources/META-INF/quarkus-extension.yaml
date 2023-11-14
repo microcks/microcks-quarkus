@@ -1,6 +1,7 @@
 name: Microcks
-description: REST, GraphQL, gRPC API and SOAP mock endpoints and contract testing - directly from your specs
+description: Microcks is an open-source cloud-native platform for mocking and contract-testing all kinds of APIs - directly from your specs. It supports REST OpenAPI, gRPC, GraphQL, Async APIs and SOAP WebServices.
 metadata:
+  shortname: microcks
   keywords:
     - api
     - mocking
@@ -10,7 +11,11 @@ metadata:
     - grpc
     - soap
   guide: https://github.com/microcks/microcks-quarkus
+  icon-url: https://microcks.io/images/microcks-logo-blue.png
   categories:
     - "web"
     - "cloud"
+    - "test"
+  scm:
+    url: "https://github.com/microcks/microcks-quarkus"
   status: "preview"
