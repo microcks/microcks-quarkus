@@ -15,7 +15,7 @@ metadata:
   categories:
     - "web"
     - "cloud"
-    - "test"
+    - "testing"
   scm:
     url: "https://github.com/microcks/microcks-quarkus"
   status: "preview"
