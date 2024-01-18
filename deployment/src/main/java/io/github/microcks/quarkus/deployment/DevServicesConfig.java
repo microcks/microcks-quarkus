@@ -34,7 +34,7 @@ public interface DevServicesConfig {
     * by default, unless there is an existing configuration present.
     * <p>
     * When DevServices is enabled Quarkus will attempt to automatically configure and start
-    * a database when running in Dev or Test mode and when Docker is running.
+    * a Microcks server when running in Dev or Test mode and when Docker is running.
     */
    @WithDefault("true")
    boolean enabled();
@@ -69,7 +69,7 @@ public interface DevServicesConfig {
     * <p>
     * This property is used when you need multiple shared Microcks servers.
     */
-   @WithDefault("microcks")
+   @WithDefault("default")
    String serviceName();
 
    /**
