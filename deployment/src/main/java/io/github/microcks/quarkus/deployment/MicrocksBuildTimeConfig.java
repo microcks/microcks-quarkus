@@ -21,7 +21,6 @@ import io.quarkus.runtime.annotations.ConfigRoot;
 import io.smallrye.config.ConfigMapping;
 import io.smallrye.config.WithParentName;
 
-
 /**
  * Configuration description for the Microcks Quarkus extension.
  * @author laurent

@@ -54,7 +54,6 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -69,7 +68,7 @@ import java.util.stream.Stream;
 import static io.quarkus.runtime.LaunchMode.DEVELOPMENT;
 
 /**
- * BuildSteps processor that takes care of starting/registring a Microcks container devservice
+ * BuildSteps processor that takes care of starting/registering a Microcks container devservice
  * and its DevUI custom card.
  * @author laurent
  */

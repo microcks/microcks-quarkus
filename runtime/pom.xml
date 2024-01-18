@@ -4,7 +4,7 @@
   <parent>
     <groupId>io.github.microcks.quarkus</groupId>
     <artifactId>quarkus-microcks-parent</artifactId>
-    <version>0.1.4-SNAPSHOT</version>
+    <version>0.2.0-SNAPSHOT</version>
   </parent>
 
   <artifactId>quarkus-microcks</artifactId>
@@ -12,7 +12,7 @@
   <description>REST, GraphQL, gRPC API and SOAP mock endpoints and contract testing - directly from your specs</description>
 
   <properties>
-    <microcks-testcontainers.version>0.1.4</microcks-testcontainers.version>
+    <microcks-testcontainers.version>0.2.1</microcks-testcontainers.version>
   </properties>
 
   <dependencies>
