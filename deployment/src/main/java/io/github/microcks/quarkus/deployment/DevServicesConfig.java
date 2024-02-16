@@ -82,6 +82,12 @@ public interface DevServicesConfig {
     */
    Optional<ArtifactsConfiguration> artifacts();
 
+   /**
+    * The Ensemble configuration for optional additional features.
+    */
+   default Optional<EnsembleConfiguration> ensemble() {
+      return Optional.empty();
+   }
 
    /**
     * Configuration for Artifacts to load within Microcks container.
@@ -97,5 +103,50 @@ public interface DevServicesConfig {
        * This list is for artifacts to load as secondary ones.
        */
       Optional<List<String>> secondaries();
+   }
+
+   /**
+    * Configuration for optional Ensemble features to load within Microcks DevService.
+    */
+   @ConfigGroup
+   public interface EnsembleConfiguration {
+
+      /**
+       * Whether we should enable AsyncAPI related features. This will result in the creation and
+       * management of a {@code MicrocksContainerEnsemble} with the async features.
+       */
+      @WithDefault("false")
+      boolean asyncEnabled();
+
+      /**
+       * The container image name to use for the Microcks Async Minion component.
+       * Use an image based on or derived from: {@code quay.io/microcks/microcks-uber-async-minion:latest}.
+       */
+      default Optional<String> asyncImageName() {
+         return Optional.empty();
+      }
+
+      /**
+       * Whether we should enable Postman testing related features. This will result in the creation and
+       * management of a {@code MicrocksContainerEnsemble} with the Postman features.
+       */
+      @WithDefault("false")
+      boolean postmanEnabled();
+
+      /**
+       * The container image name to use for the Microcks Postman component.
+       * Use an image based on or derived from: {@code quay.io/microcks/microcks-postman-runner:latest}.
+       */
+      default Optional<String> postmanImageName() {
+         return Optional.empty();
+      }
+
+      /**
+       *
+       * @return
+       */
+      default boolean enabled() {
+         return asyncEnabled() || postmanEnabled();
+      }
    }
 }
