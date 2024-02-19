@@ -55,6 +55,7 @@ import org.jboss.logging.Logger;
 import org.testcontainers.Testcontainers;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.Network;
+import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.utility.Base58;
 import org.testcontainers.utility.DockerImageName;
 
@@ -91,6 +92,7 @@ public class DevServicesMicrocksProcessor {
    private static final String MICROCKS = "microcks";
    private static final String MICROCKS_UBER_LATEST = "quay.io/microcks/microcks-uber:latest";
    private static final String MICROCKS_UBER_ASYNC_MINION_LATEST = "quay.io/microcks/microcks-uber-async-minion:latest";
+   private static final String MICROCKS_POSTMAN_LATEST = "quay.io/microcks/microcks-postman-runtime:latest";
    private static final String HTTP_SCHEME = "http://";
 
    /**
@@ -116,13 +118,15 @@ public class DevServicesMicrocksProcessor {
    /** List of extensions for detecting artifacts to import as secondary ones. */
    private static final List<String> SECONDARY_ARTIFACTS_EXTENSIONS = Arrays.asList("postman-collection.json", "postman_collection.json",
          "-metadata.yml", "-metadata.yaml", ".har");
+   /** List of extensions corresponding to Postman collection artifacts. */
+   private static final List<String> POSTMAN_COLLECTION_EXTENSIONS = Arrays.asList("postman-collection.json", "postman_collection.json");
 
 
    private static volatile List<RunningDevService> devServices;
    private static volatile DevServiceConfiguration capturedDevServicesConfig;
    private static volatile boolean first = true;
-
    private static volatile MicrocksContainersEnsembleHosts ensembleHosts;
+   private static volatile boolean aPostmanCollectionIsPresent = false;
 
    /** An empty build item triggering the end of Microcks ensemble build process. */
    public static final class MicrocksEnsembleBuildItem extends EmptyBuildItem {}
@@ -263,6 +267,22 @@ public class DevServicesMicrocksProcessor {
          }
       });
 
+      if (ensembleConfiguration.postmanEnabled() || aPostmanCollectionIsPresent) {
+         log.debug("Starting a GenericContainer with Postman...");
+
+         // We've got the conditions for launching a new GenericContainer with Postman !
+         GenericContainer<?> postmanContainer = new GenericContainer<>(
+               DockerImageName.parse(ensembleConfiguration.postmanImageName().orElse(MICROCKS_POSTMAN_LATEST)))
+               .withNetwork(Network.SHARED)
+               .withNetworkAliases(ensembleHosts.getPostmanHost())
+               .withAccessToHost(true)
+               .waitingFor(Wait.forLogMessage(".*postman-runtime wrapper listening on port.*", 1));
+
+         postmanContainer.start();
+
+         closeBuildItem.addCloseTask(postmanContainer::stop, true);
+      }
+
       if (ensembleConfiguration.asyncEnabled() || aBrokerIsPresent) {
          log.debug("Starting a MicrocksAsyncMinionContainer...");
 
@@ -290,7 +310,7 @@ public class DevServicesMicrocksProcessor {
          asyncMinionContainer.getNetworkAliases().add(ensembleHosts.getAsyncMinionHost());
          asyncMinionContainer.start();
 
-         closeBuildItem.addCloseTask(() -> asyncMinionContainer.stop(), true);
+         closeBuildItem.addCloseTask(asyncMinionContainer::stop, true);
       }
    }
 
@@ -486,9 +506,21 @@ public class DevServicesMicrocksProcessor {
       return Collections.emptySet();
    }
 
-   private boolean endsWithOneOf(String candidate, List<String> validSuffixes) {
+   private static boolean endsWithOneOf(String candidate, List<String> validSuffixes) {
       for (String validSuffix : validSuffixes) {
          if (candidate.endsWith(validSuffix)) {
+            if (isAPostmanCollection(candidate)) {
+               aPostmanCollectionIsPresent = true;
+            }
+            return true;
+         }
+      }
+      return false;
+   }
+
+   private static boolean isAPostmanCollection(String candidate) {
+      for (String postmanSuffix : POSTMAN_COLLECTION_EXTENSIONS) {
+         if (candidate.endsWith(postmanSuffix)) {
             return true;
          }
       }
