@@ -143,7 +143,6 @@ The `TestResult` gives you access to all details regarding success of failure on
 
 A comprehensive Quarkus demo application illustrating both usages is available here: [quarkus-order-service](https://github.com/microcks/api-lifecycle/tree/master/shift-left-demo/quarkus-order-service).
 
-
 ### Configure your Microcks image
 
 By default, Microcks DevService will use the `quay.io/microcks/microcks-uber:latest` image that is the latest stable one.
@@ -152,4 +151,87 @@ However, you can specify a compatible image of your choice using the following p
 ```properties
 # Specify here the Microcks-uber image you want to use.
 quarkus.microcks.devservices.image-name=quay.io/microcks/microcks-uber:nightly
+```
+
+### Advanced features with Async and Postman
+
+Starting with version `0.2.0` the Microcks DevService also integrates Async API/Event Driven Architecture features and also
+allow you to implement
+[Different levels of API contract testing](https://medium.com/@lbroudoux/different-levels-of-api-contract-testing-with-microcks-ccc0847f8c97)
+in your Inner Loop!
+
+Based on the artifacts the DevService discovered or forced with configuration properties, the DevService may start additional containers
+(`microcks-async-minion` and `microcks-postman-runtime`) that you may use for contract-testing. The group of containers has been
+called an `ensemble`:
+
+```properties
+# Force the enablement/deactivation of Async API support.
+quarkus.microcks.devservices.ensemble.asyncEnabled=true
+# Customize the Microcks-uber-async-minion image you want to use.
+quarkus.microcks.devservices.ensemble.asyncImageName=true
+
+# Force the enablement/deactivation of Postman runtime support.
+quarkus.microcks.devservices.ensemble.postmanEnabled=true
+# Customize the Microcks-postman-runtim image you want to use.
+quarkus.microcks.devservices.ensemble.postmanImageName=true
+```
+
+#### Postman contract-testing
+
+You can execute a `POSTMAN` test using an ensemble that way:
+
+```java
+// Ask for a Postman Collection conformance to be launched.
+TestRequest testRequest = new TestRequest.Builder()
+      .serviceId("Order Service API:0.1.0")
+      .runnerType(TestRunnerType.POSTMAN.name())
+      .testEndpoint("http://host.testcontainers.internal:" + quarkusHttpPort + "/api")
+      .build();
+
+TestResult testResult = MicrocksContainer.testEndpoint(microcksContainerUrl, testRequest);
+```
+
+#### Asynchronous API support
+
+Asynchronous API in the Microcks DevService only supports [Apache Kafka](https://kafka.apache.org) at time of writing.
+Additional bindings may be added in the future ; please tell us what you need!
+
+##### Using mock endpoints for your dependencies
+
+Kafka topics for publishing/receiving mock messages are directly created by Microcks on the bound Kafka broker found in the
+running DevServices list. These topics are named from the API name + API version + operation.
+
+For example: when discovering an AsyncAPI named `Order Events API` with version `0.1.0` and operation `orders-reviewed` Microcks
+will create and manage a `OrderEventsAPI-0.1.0-orders-reviewed` topic. You can reuse this value into your Kafka/Reactive Messaging
+client configuration:
+
+```properties
+# Specify here the Mock Topic provided by microcks devservices, following the naming convention.
+mp.messaging.incoming.orders-reviewed.connector=smallrye-kafka
+mp.messaging.incoming.orders-reviewed.topic=OrderEventsAPI-0.1.0-orders-reviewed
+```
+
+##### Launching new contract-tests
+
+Using contract-testing techniques on Asynchronous endpoints may require a different style of interacting with the Microcks
+container. For example, you may need to:
+1. Start the test making Microcks listen to the target async endpoint,
+2. Activate your System Under Tests so that it produces an event,
+3. Finalize the Microcks tests and actually ensure you received one or many well-formed events.
+
+For that the `MicrocksContainer` now provides a `testEndpointAsync(String microcksContainerUrl, TestRequest request)` method that actually returns a `CompletableFuture`.
+Once invoked, you may trigger your application events and then `get()` the future result to assert like this:
+
+```java
+// Start the test, making Microcks listen the endpoint provided in testRequest
+CompletableFuture<TestResult> testRequestFuture = MicrocksContainer.testEndpointAsync(microcksContainerUrl, kafkaTest);
+
+// Invoke the application to create an order.
+Order createdOrder = service.placeOrder(info);
+
+// You may check additional stuff on createdOrder...
+
+// Get the Microcks test result.
+TestResult testResult = testRequestFuture.get();
+assertTrue(testResult.isSuccess());
 ```
