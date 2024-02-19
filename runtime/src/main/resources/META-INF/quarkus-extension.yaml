@@ -10,6 +10,8 @@ metadata:
     - graphql
     - grpc
     - soap
+    - async
+    - kafka
   guide: https://github.com/microcks/microcks-quarkus
   icon-url: https://microcks.io/images/microcks-logo-blue.png
   categories:
