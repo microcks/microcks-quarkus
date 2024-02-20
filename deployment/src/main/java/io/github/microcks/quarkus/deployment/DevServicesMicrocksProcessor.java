@@ -238,79 +238,84 @@ public class DevServicesMicrocksProcessor {
     */
    @BuildStep
    @Produce(MicrocksEnsembleBuildItem.class)
-   public void complementMicrocksEnsemble(MicrocksBuildTimeConfig config, DevServicesLauncherConfigResultBuildItem devServicesConfigResult,
+   public void completeMicrocksEnsemble(MicrocksBuildTimeConfig config, DevServicesLauncherConfigResultBuildItem devServicesConfigResult,
          CuratedApplicationShutdownBuildItem closeBuildItem) {
 
-      String microcksHost = ensembleHosts.getMicrocksHost();
+      // ensembleHosts may be null if container has not been started
+      // (If devservices are disabled or we couldn't locate existing containers)
+      if (ensembleHosts != null) {
+         String microcksHost = ensembleHosts.getMicrocksHost();
 
-      boolean aBrokerIsPresent = false;
-      String kafkaBootstrapServers = null;
+         boolean aBrokerIsPresent = false;
+         String kafkaBootstrapServers = null;
 
-      for (Map.Entry configEntry : devServicesConfigResult.getConfig().entrySet()) {
-         log.debugf("DevServices config: %s=%s", configEntry.getKey(), configEntry.getValue());
-         if ("kafka.bootstrap.servers".equals(configEntry.getKey())) {
-            kafkaBootstrapServers = configEntry.getValue().toString();
-            aBrokerIsPresent = true;
+         for (Map.Entry configEntry : devServicesConfigResult.getConfig().entrySet()) {
+            log.debugf("DevServices config: %s=%s", configEntry.getKey(), configEntry.getValue());
+            if ("kafka.bootstrap.servers".equals(configEntry.getKey())) {
+               kafkaBootstrapServers = configEntry.getValue().toString();
+               aBrokerIsPresent = true;
+            }
          }
-      }
 
-      // Get the ensemble configuration or a default one.
-      DevServicesConfig devServiceConfig = config.defaultDevService().devservices();
-      DevServicesConfig.EnsembleConfiguration ensembleConfiguration = devServiceConfig.ensemble().orElse(new DevServicesConfig.EnsembleConfiguration() {
-         @Override
-         public boolean asyncEnabled() {
-            return false;
-         }
-         @Override
-         public boolean postmanEnabled() {
-            return false;
-         }
-      });
-
-      if (ensembleConfiguration.postmanEnabled() || aPostmanCollectionIsPresent) {
-         log.debug("Starting a GenericContainer with Postman...");
-
-         // We've got the conditions for launching a new GenericContainer with Postman !
-         GenericContainer<?> postmanContainer = new GenericContainer<>(
-               DockerImageName.parse(ensembleConfiguration.postmanImageName().orElse(MICROCKS_POSTMAN_LATEST)))
-               .withNetwork(Network.SHARED)
-               .withNetworkAliases(ensembleHosts.getPostmanHost())
-               .withAccessToHost(true)
-               .waitingFor(Wait.forLogMessage(".*postman-runtime wrapper listening on port.*", 1));
-
-         postmanContainer.start();
-
-         closeBuildItem.addCloseTask(postmanContainer::stop, true);
-      }
-
-      if (ensembleConfiguration.asyncEnabled() || aBrokerIsPresent) {
-         log.debug("Starting a MicrocksAsyncMinionContainer...");
-
-         // We've got the conditions for launching a new MicrocksAsyncMinionContainer !
-         MicrocksAsyncMinionContainer asyncMinionContainer = new MicrocksAsyncMinionContainer(Network.SHARED,
-               DockerImageName.parse(ensembleConfiguration.asyncImageName().orElse(MICROCKS_UBER_ASYNC_MINION_LATEST)), microcksHost)
-               .withAccessToHost(true);
-
-         // Configure connection to a Kafka broker if any.
-         if (kafkaBootstrapServers != null) {
-            if (kafkaBootstrapServers.contains(",")) {
-               String[] kafkaAddresses = kafkaBootstrapServers.split(",");
-               for (String kafkaAddress : kafkaAddresses) {
-                  if (kafkaAddress.startsWith("PLAINTEXT://")) {
-                     kafkaBootstrapServers = kafkaAddress.replace("PLAINTEXT://", "");
-                  }
-               }
+         // Get the ensemble configuration or a default one.
+         DevServicesConfig devServiceConfig = config.defaultDevService().devservices();
+         DevServicesConfig.EnsembleConfiguration ensembleConfiguration = devServiceConfig.ensemble().orElse(new DevServicesConfig.EnsembleConfiguration() {
+            @Override
+            public boolean asyncEnabled() {
+               return false;
             }
 
-            log.debugf("Adding a KafkaConnection to '%s' for MicrocksAsyncMinionContainer", kafkaBootstrapServers);
-            asyncMinionContainer.withKafkaConnection(new KafkaConnection(
-                  kafkaBootstrapServers.replace("localhost", GenericContainer.INTERNAL_HOST_HOSTNAME)));
+            @Override
+            public boolean postmanEnabled() {
+               return false;
+            }
+         });
+
+         if (ensembleConfiguration.postmanEnabled() || aPostmanCollectionIsPresent) {
+            log.debug("Starting a GenericContainer with Postman...");
+
+            // We've got the conditions for launching a new GenericContainer with Postman !
+            GenericContainer<?> postmanContainer = new GenericContainer<>(
+                  DockerImageName.parse(ensembleConfiguration.postmanImageName().orElse(MICROCKS_POSTMAN_LATEST)))
+                  .withNetwork(Network.SHARED)
+                  .withNetworkAliases(ensembleHosts.getPostmanHost())
+                  .withAccessToHost(true)
+                  .waitingFor(Wait.forLogMessage(".*postman-runtime wrapper listening on port.*", 1));
+
+            postmanContainer.start();
+
+            closeBuildItem.addCloseTask(postmanContainer::stop, true);
          }
 
-         asyncMinionContainer.getNetworkAliases().add(ensembleHosts.getAsyncMinionHost());
-         asyncMinionContainer.start();
+         if (ensembleConfiguration.asyncEnabled() || aBrokerIsPresent) {
+            log.debug("Starting a MicrocksAsyncMinionContainer...");
 
-         closeBuildItem.addCloseTask(asyncMinionContainer::stop, true);
+            // We've got the conditions for launching a new MicrocksAsyncMinionContainer !
+            MicrocksAsyncMinionContainer asyncMinionContainer = new MicrocksAsyncMinionContainer(Network.SHARED,
+                  DockerImageName.parse(ensembleConfiguration.asyncImageName().orElse(MICROCKS_UBER_ASYNC_MINION_LATEST)), microcksHost)
+                  .withAccessToHost(true);
+
+            // Configure connection to a Kafka broker if any.
+            if (kafkaBootstrapServers != null) {
+               if (kafkaBootstrapServers.contains(",")) {
+                  String[] kafkaAddresses = kafkaBootstrapServers.split(",");
+                  for (String kafkaAddress : kafkaAddresses) {
+                     if (kafkaAddress.startsWith("PLAINTEXT://")) {
+                        kafkaBootstrapServers = kafkaAddress.replace("PLAINTEXT://", "");
+                     }
+                  }
+               }
+
+               log.debugf("Adding a KafkaConnection to '%s' for MicrocksAsyncMinionContainer", kafkaBootstrapServers);
+               asyncMinionContainer.withKafkaConnection(new KafkaConnection(
+                     kafkaBootstrapServers.replace("localhost", GenericContainer.INTERNAL_HOST_HOSTNAME)));
+            }
+
+            asyncMinionContainer.getNetworkAliases().add(ensembleHosts.getAsyncMinionHost());
+            asyncMinionContainer.start();
+
+            closeBuildItem.addCloseTask(asyncMinionContainer::stop, true);
+         }
       }
    }
 
@@ -351,7 +356,7 @@ public class DevServicesMicrocksProcessor {
                                             LaunchMode launchMode, CurateOutcomeBuildItem outcomeBuildItem, Optional<Duration> timeout) {
       if (!devServicesConfig.enabled()) {
          // explicitly disabled
-         log.debug("Not starting devservices for Microcks as it has been disabled in the config");
+         log.info("Not starting devservices for Microcks as it has been disabled in the config");
          return null;
       }
 
