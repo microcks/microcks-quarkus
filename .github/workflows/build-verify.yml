@@ -29,7 +29,7 @@ jobs:
           cache: maven
 
       - name: Build Java components
-        run: mvn -B clean verify
+        run: mvn -B clean install
 
       - name: Verify Javadoc completion
         run: mvn -B javadoc:javadoc
