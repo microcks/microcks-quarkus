@@ -311,7 +311,10 @@ public class DevServicesMicrocksProcessor {
                      kafkaBootstrapServers.replace("localhost", GenericContainer.INTERNAL_HOST_HOSTNAME)));
             }
 
-            asyncMinionContainer.getNetworkAliases().add(ensembleHosts.getAsyncMinionHost());
+            // Update network aliases with ensembleHosts before starting it.
+            List<String> aliases = asyncMinionContainer.getNetworkAliases();
+            aliases.add(ensembleHosts.getAsyncMinionHost());
+            asyncMinionContainer.setNetworkAliases(aliases);
             asyncMinionContainer.start();
 
             closeBuildItem.addCloseTask(asyncMinionContainer::stop, true);
