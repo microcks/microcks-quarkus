@@ -166,14 +166,14 @@ called an `ensemble`:
 
 ```properties
 # Force the enablement/deactivation of Async API support.
-quarkus.microcks.devservices.ensemble.asyncEnabled=true
+quarkus.microcks.devservices.ensemble.async-enabled=true
 # Customize the Microcks-uber-async-minion image you want to use.
-quarkus.microcks.devservices.ensemble.asyncImageName=true
+quarkus.microcks.devservices.ensemble.async-image-name=quay.io/microcks/microcks-uber-async-minion:nightly
 
 # Force the enablement/deactivation of Postman runtime support.
-quarkus.microcks.devservices.ensemble.postmanEnabled=true
-# Customize the Microcks-postman-runtim image you want to use.
-quarkus.microcks.devservices.ensemble.postmanImageName=true
+quarkus.microcks.devservices.ensemble.postman-enabled=true
+# Customize the Microcks-postman-runtime image you want to use.
+quarkus.microcks.devservices.ensemble.postman-image-name=quay.io/microcks/microcks-postman-runtime:nightly
 ```
 
 #### Postman contract-testing
