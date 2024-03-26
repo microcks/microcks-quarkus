@@ -2,7 +2,7 @@
 
 Quarkus extension that enables embedding Microcks as a DevService managing mocks for dependencies and contract-testing your API endpoints
 
-Want to see this extension in action? Check out our [sample application](https://github.com/microcks/api-lifecycle/tree/master/shift-left-demo/quarkus-order-service). 🚀
+Want to see this extension in action? Check out our [sample application](https://github.com/microcks/microcks-quarkus-demo). 🚀
 
 [![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/microcks/microcks-quarkus/build-verify.yml?logo=github&style=for-the-badge)](https://github.com/microcks/microcks-quarkus/actions)
 [![Version](https://img.shields.io/maven-central/v/io.github.microcks.quarkus/quarkus-microcks?color=blue&style=for-the-badge)]((https://search.maven.org/artifact/io.github.microcks.quarkus/quarkus-microcks-parent))
@@ -103,6 +103,14 @@ quarkus.microcks.devservices.artifacts.primaries=target/classes/order-service-op
 quarkus.microcks.devservices.artifacts.secondaries=target/test-classes/third-parties/apipastries-postman-collection.json
 ```
 
+Starting with version `0.2.3`, you can also use the `remote-artifact.primaries` and `remote-artifact.secondaries` configuration
+properties to specify URLs to load remote artifacts within the Microcks DevService:
+
+```properties
+quarkus.microcks.devservices.remote-artifacts.primaries=https://raw.githubusercontent.com/microcks/microcks/master/samples/films.graphql
+quarkus.microcks.devservices.remote-artifacts.secondaries=https://raw.githubusercontent.com/microcks/microcks/master/samples/films-postman.json
+```
+
 ### Using mock endpoints for your dependencies
 
 At development time or during your unit tests setup, you'd probably need to configure mock endpoints provided by Microcks 
@@ -115,7 +123,7 @@ quarkus.rest-client."org.acme.order.client.PastryAPIClient".url=${quarkus.microc
 
 ### Launching new contract-tests
 
-If you want to ensure that your application under test is conformant to an OpenAPI contract (or many contracts),
+If you want to ensure that your application under test is conform to an OpenAPI contract (or many contracts),
 you can launch a Microcks contract/conformance test using the local server port you're actually running. Microcks container
 is automatically configured for being able to reach your local application on the configured or default `quarkus.http.test-port`:
 

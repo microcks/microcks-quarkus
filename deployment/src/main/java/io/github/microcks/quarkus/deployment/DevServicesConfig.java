@@ -78,9 +78,14 @@ public interface DevServicesConfig {
    Map<String, String> containerEnv();
 
    /**
-    * The Artifacts to load withing Microcks container.
+    * The Artifacts to load within Microcks container.
     */
    Optional<ArtifactsConfiguration> artifacts();
+
+   /**
+    * The remote Artifacts to load within Microcks container.
+    */
+   Optional<ArtifactsConfiguration> remoteArtifacts();
 
    /**
     * The Ensemble configuration for optional additional features.

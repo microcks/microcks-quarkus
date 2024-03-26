@@ -444,6 +444,25 @@ public class DevServicesMicrocksProcessor {
    }
 
    private void initializeArtifacts(MicrocksContainer microcksContainer, DevServicesConfig devServicesConfig, CurateOutcomeBuildItem outcomeBuildItem) {
+      // First, load the remote artifacts if any.
+      if (devServicesConfig.remoteArtifacts().isPresent()) {
+         ArtifactsConfiguration remoteArtifactsConfig = devServicesConfig.remoteArtifacts().get();
+         try {
+            for (String remoteArtifactUrl : remoteArtifactsConfig.primaries()) {
+               log.infof("Load '%s' as primary remote artifact", remoteArtifactUrl);
+               microcksContainer.downloadAsMainRemoteArtifact(remoteArtifactUrl);
+            }
+            if (remoteArtifactsConfig.secondaries().isPresent()) {
+               for (String remoteArtifactUrl : remoteArtifactsConfig.secondaries().get()) {
+                  log.infof("Load '%s' as secondary remote artifact", remoteArtifactUrl);
+                  microcksContainer.downloadAsSecondaryRemoteArtifact(remoteArtifactUrl);
+               }
+            }
+         } catch (Exception e) {
+            log.error("Failed to load Remote Artifacts in microcks", e);
+         }
+      }
+      // Then, load or scan the local artifacts if any.
       if (devServicesConfig.artifacts().isPresent()) {
          ArtifactsConfiguration artifactsConfig = devServicesConfig.artifacts().get();
          try {
