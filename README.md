@@ -1,6 +1,6 @@
 # Microcks Quarkus
 
-Quarkus extension that enables embedding Microcks as a DevService managing mocks for dependencies and contract-testing your API endpoints
+Quarkus extension that enables embedding Microcks as a Dev Service managing mocks for dependencies and contract-testing your API endpoints
 
 Want to see this extension in action? Check out our [sample application](https://github.com/microcks/microcks-quarkus-demo). 🚀
 
@@ -41,13 +41,13 @@ If you're using Maven:
 
 Don't forget to specify the `provided` scope as the extension is just for easing your life during development mode and tests 👻
 
-### Configuring the DevServices
+### Configuring the Dev Services
 
-By default, and if global DevServices are not disabled, Microcks DevService will run on next `mvn quarkus:dev`, launching 
+By default, and if global Dev Services are not disabled, Microcks Dev Service will run on next `mvn quarkus:dev`, launching 
 a Microcks Testcontainer to handle your mock dependencies.  You can obviously fine-tune the configuration using properties 
 in `application.properties`. Microcks related properties have the `quarkus.microcks` prefix.
 
-You can explicitly disable Microcks DevService if you want save some resources at some point:
+You can explicitly disable Microcks Dev Service if you want save some resources at some point:
 
 ```properties
 quarkus.microcks.devservices.enabled=false
@@ -85,9 +85,9 @@ SoapUI artifacts. Artifacts can be imported as main/primary ones or as secondary
 See [Multi-artifacts support](https://microcks.io/documentation/using/importers/#multi-artifacts-support) for details. 
 Import is done automatically at container startup depending on your configuration.
 
-By default, Microcks DevService automatically discover and load artifacts found in main resources folders (typically `src/main/resources`)
+By default, Microcks Dev Service automatically discover and load artifacts found in main resources folders (typically `src/main/resources`)
 and test resources folders (typically `src/test/resources`).
-In order to find the correct artifacts and make difference between primary and secondary ones, the DevService relies on naming conventions:
+In order to find the correct artifacts and make difference between primary and secondary ones, the Dev Service relies on naming conventions:
 * All the files named `*-openapi.yml`, `*-openapi.yaml`, `*-openapi.json` will be imported as **primary** artifacts,
 * All the files named `*-asyncapi.yml`, `*-asyncapi.yaml`, `*-asyncapi.json` will be imported as **primary** artifacts,
 * All the files named `*.proto`, `*.graphql`, `*-soapui-project.xml` will also be imported as **primary** artifacts,
@@ -104,7 +104,7 @@ quarkus.microcks.devservices.artifacts.secondaries=target/test-classes/third-par
 ```
 
 Starting with version `0.2.3`, you can also use the `remote-artifact.primaries` and `remote-artifact.secondaries` configuration
-properties to specify URLs to load remote artifacts within the Microcks DevService:
+properties to specify URLs to load remote artifacts within the Microcks Dev Service:
 
 ```properties
 quarkus.microcks.devservices.remote-artifacts.primaries=https://raw.githubusercontent.com/microcks/microcks/master/samples/films.graphql
@@ -153,7 +153,7 @@ A comprehensive Quarkus demo application illustrating both usages is available h
 
 ### Configure your Microcks image
 
-By default, Microcks DevService will use the `quay.io/microcks/microcks-uber:latest` image that is the latest stable one.
+By default, Microcks Dev Service will use the `quay.io/microcks/microcks-uber:latest` image that is the latest stable one.
 However, you can specify a compatible image of your choice using the following property:
 
 ```properties
@@ -163,12 +163,12 @@ quarkus.microcks.devservices.image-name=quay.io/microcks/microcks-uber:nightly
 
 ### Advanced features with Async and Postman
 
-Starting with version `0.2.0` the Microcks DevService also integrates Async API/Event Driven Architecture features and also
+Starting with version `0.2.0` the Microcks Dev Service also integrates Async API/Event Driven Architecture features and also
 allow you to implement
 [Different levels of API contract testing](https://medium.com/@lbroudoux/different-levels-of-api-contract-testing-with-microcks-ccc0847f8c97)
 in your Inner Loop!
 
-Based on the artifacts the DevService discovered or forced with configuration properties, the DevService may start additional containers
+Based on the artifacts the Dev Service discovered or forced with configuration properties, the Dev Service may start additional containers
 (`microcks-async-minion` and `microcks-postman-runtime`) that you may use for contract-testing. The group of containers has been
 called an `ensemble`:
 
@@ -201,13 +201,13 @@ TestResult testResult = MicrocksContainer.testEndpoint(microcksContainerUrl, tes
 
 #### Asynchronous API support
 
-Asynchronous API in the Microcks DevService only supports [Apache Kafka](https://kafka.apache.org) at time of writing.
+Asynchronous API in the Microcks Dev Service only supports [Apache Kafka](https://kafka.apache.org) at time of writing.
 Additional bindings may be added in the future ; please tell us what you need!
 
 ##### Using mock endpoints for your dependencies
 
 Kafka topics for publishing/receiving mock messages are directly created by Microcks on the bound Kafka broker found in the
-running DevServices list. These topics are named from the API name + API version + operation.
+running Dev Services list. These topics are named from the API name + API version + operation.
 
 For example: when discovering an AsyncAPI named `Order Events API` with version `0.1.0` and operation `orders-reviewed` Microcks
 will create and manage a `OrderEventsAPI-0.1.0-orders-reviewed` topic. You can reuse this value into your Kafka/Reactive Messaging
