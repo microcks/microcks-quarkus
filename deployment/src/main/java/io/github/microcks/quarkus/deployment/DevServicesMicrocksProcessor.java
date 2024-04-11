@@ -90,9 +90,6 @@ public class DevServicesMicrocksProcessor {
    private static final Logger log = Logger.getLogger(DevServicesMicrocksProcessor.class);
 
    private static final String MICROCKS = "microcks";
-   private static final String MICROCKS_UBER_LATEST = "quay.io/microcks/microcks-uber:latest";
-   private static final String MICROCKS_UBER_ASYNC_MINION_LATEST = "quay.io/microcks/microcks-uber-async-minion:latest";
-   private static final String MICROCKS_POSTMAN_LATEST = "quay.io/microcks/microcks-postman-runtime:latest";
    private static final String HTTP_SCHEME = "http://";
 
    /**
@@ -257,26 +254,16 @@ public class DevServicesMicrocksProcessor {
             }
          }
 
-         // Get the ensemble configuration or a default one.
+         // Get the ensemble configuration.
          DevServicesConfig devServiceConfig = config.defaultDevService().devservices();
-         DevServicesConfig.EnsembleConfiguration ensembleConfiguration = devServiceConfig.ensemble().orElse(new DevServicesConfig.EnsembleConfiguration() {
-            @Override
-            public boolean asyncEnabled() {
-               return false;
-            }
-
-            @Override
-            public boolean postmanEnabled() {
-               return false;
-            }
-         });
+         DevServicesConfig.EnsembleConfiguration ensembleConfiguration = devServiceConfig.ensemble();
 
          if (ensembleConfiguration.postmanEnabled() || aPostmanCollectionIsPresent) {
-            log.debug("Starting a GenericContainer with Postman...");
+            log.debugf("Starting a GenericContainer with Postman image '%s'", ensembleConfiguration.postmanImageName());
 
             // We've got the conditions for launching a new GenericContainer with Postman !
             GenericContainer<?> postmanContainer = new GenericContainer<>(
-                  DockerImageName.parse(ensembleConfiguration.postmanImageName().orElse(MICROCKS_POSTMAN_LATEST)))
+                  DockerImageName.parse(ensembleConfiguration.postmanImageName()))
                   .withNetwork(Network.SHARED)
                   .withNetworkAliases(ensembleHosts.getPostmanHost())
                   .withAccessToHost(true)
@@ -288,11 +275,11 @@ public class DevServicesMicrocksProcessor {
          }
 
          if (ensembleConfiguration.asyncEnabled() || aBrokerIsPresent) {
-            log.debug("Starting a MicrocksAsyncMinionContainer...");
+            log.debugf("Starting a MicrocksAsyncMinionContainer with image '%s'", ensembleConfiguration.asyncImageName());
 
             // We've got the conditions for launching a new MicrocksAsyncMinionContainer !
             MicrocksAsyncMinionContainer asyncMinionContainer = new MicrocksAsyncMinionContainer(Network.SHARED,
-                  DockerImageName.parse(ensembleConfiguration.asyncImageName().orElse(MICROCKS_UBER_ASYNC_MINION_LATEST)), microcksHost)
+                  DockerImageName.parse(ensembleConfiguration.asyncImageName()), microcksHost)
                   .withAccessToHost(true);
 
             // Configure connection to a Kafka broker if any.
@@ -368,8 +355,8 @@ public class DevServicesMicrocksProcessor {
          return null;
       }
 
-      DockerImageName dockerImageName = DockerImageName.parse(devServicesConfig.imageName().orElse(MICROCKS_UBER_LATEST))
-            .asCompatibleSubstituteFor(MICROCKS_UBER_LATEST);
+      DockerImageName dockerImageName = DockerImageName.parse(devServicesConfig.imageName())
+            .asCompatibleSubstituteFor(DevServicesConfig.MICROCKS_UBER_LATEST);
 
       Supplier<RunningDevService> defaultMicrocksSupplier = () -> {
          MicrocksContainer microcksContainer = new MicrocksContainer(dockerImageName);

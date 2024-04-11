@@ -29,6 +29,14 @@ import java.util.Optional;
 @ConfigGroup
 public interface DevServicesConfig {
 
+   /** Default image name for Microcks container. */
+   String MICROCKS_UBER_LATEST = "quay.io/microcks/microcks-uber:latest";
+   /** Default image name for Microcks Async minion container. */
+   String MICROCKS_UBER_ASYNC_MINION_LATEST = "quay.io/microcks/microcks-uber-async-minion:latest";
+   /** Default image name for Microcks Postman runtime container. */
+   String MICROCKS_POSTMAN_LATEST = "quay.io/microcks/microcks-postman-runtime:latest";
+
+
    /**
     * If DevServices has been explicitly enabled or disabled. DevServices is generally enabled
     * by default, unless there is an existing configuration present.
@@ -43,7 +51,8 @@ public interface DevServicesConfig {
     * The container image name to use, for container based DevServices providers.
     * Use an image based on or derived from: {@code quay.io/microcks/microcks-uber:latest}.
     */
-   Optional<String> imageName();
+   @WithDefault(MICROCKS_UBER_LATEST)
+   String imageName();
 
    /**
     * Indicates if the Microcks server managed by Quarkus Dev Services is shared.
@@ -90,9 +99,7 @@ public interface DevServicesConfig {
    /**
     * The Ensemble configuration for optional additional features.
     */
-   default Optional<EnsembleConfiguration> ensemble() {
-      return Optional.empty();
-   }
+   EnsembleConfiguration ensemble();
 
    /**
     * Configuration for Artifacts to load within Microcks container.
@@ -127,9 +134,8 @@ public interface DevServicesConfig {
        * The container image name to use for the Microcks Async Minion component.
        * Use an image based on or derived from: {@code quay.io/microcks/microcks-uber-async-minion:latest}.
        */
-      default Optional<String> asyncImageName() {
-         return Optional.empty();
-      }
+      @WithDefault(MICROCKS_UBER_ASYNC_MINION_LATEST)
+      String asyncImageName();
 
       /**
        * Whether we should enable Postman testing related features. This will result in the creation and
@@ -142,13 +148,12 @@ public interface DevServicesConfig {
        * The container image name to use for the Microcks Postman component.
        * Use an image based on or derived from: {@code quay.io/microcks/microcks-postman-runner:latest}.
        */
-      default Optional<String> postmanImageName() {
-         return Optional.empty();
-      }
+      @WithDefault(MICROCKS_POSTMAN_LATEST)
+      String postmanImageName();
 
       /**
-       *
-       * @return
+       * Is Ensemble has been forced/explicitly enabled?
+       * @return Whether one of the feature of the ensemable has been enabled.
        */
       default boolean enabled() {
          return asyncEnabled() || postmanEnabled();
