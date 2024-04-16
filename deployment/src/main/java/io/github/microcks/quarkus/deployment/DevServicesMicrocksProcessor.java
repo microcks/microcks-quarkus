@@ -17,6 +17,7 @@ package io.github.microcks.quarkus.deployment;
 
 import io.github.microcks.quarkus.deployment.DevServicesConfig.ArtifactsConfiguration;
 import io.github.microcks.quarkus.deployment.MicrocksBuildTimeConfig.DevServiceConfiguration;
+import io.github.microcks.quarkus.runtime.MicrocksProperties;
 import io.github.microcks.quarkus.runtime.MicrocksRecorder;
 import io.github.microcks.testcontainers.MicrocksAsyncMinionContainer;
 import io.github.microcks.testcontainers.MicrocksContainer;
@@ -67,12 +68,11 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalInt;
-import java.util.Set;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -100,14 +100,6 @@ public class DevServicesMicrocksProcessor {
 
    private static final ContainerLocator microcksContainerLocator = new ContainerLocator(DEV_SERVICE_LABEL, MicrocksContainer.MICROCKS_HTTP_PORT);
    private static final ContainerLocator microcksContainerLocatorForGRPC = new ContainerLocator(DEV_SERVICE_LABEL, MicrocksContainer.MICROCKS_GRPC_PORT);
-
-   private static final String CONFIG_PREFIX = "quarkus." + MICROCKS + ".";
-   private static final String HTTP_SUFFIX = ".http";
-   private static final String HTTP_HOST_SUFFIX = ".http.host";
-   private static final String HTTP_PORT_SUFFIX = ".http.port";
-   private static final String GRPC_SUFFIX = ".grpc";
-   private static final String GRPC_HOST_SUFFIX = ".grpc.host";
-   private static final String GRPC_PORT_SUFFIX = ".grpc.port";
 
    /** List of extensions for detecting artifacts to import as primary ones. */
    private static final List<String> PRIMARY_ARTIFACTS_EXTENSIONS = Arrays.asList("-openapi.yml", "-openapi.yaml", "-openapi.json",
@@ -195,7 +187,8 @@ public class DevServicesMicrocksProcessor {
          } else {
             compressor.close();
             newDevServices.add(devService);
-            String configKey = getConfigPrefix(currentDevServicesConfig.devservices().serviceName()) + HTTP_SUFFIX;
+            String configKey = MicrocksProperties.getConfigPrefix(currentDevServicesConfig.devservices().serviceName())
+                  + MicrocksProperties.HTTP_SUFFIX;
             log.infof("The '%s' microcks container is ready on %s", currentDevServicesConfig.devservices().serviceName(),
                   devService.getConfig().get(configKey));
          }
@@ -323,12 +316,13 @@ public class DevServicesMicrocksProcessor {
     * Customize the extension card in DevUI with a link to running Microcks containers UI.
     */
    @BuildStep(onlyIf = IsDevelopment.class)
-   public CardPageBuildItem pages(List<DevServicesResultBuildItem> devServicesResultBuildItems) {
+   public CardPageBuildItem pages(List<DevServicesResultBuildItem> devServicesResultBuildItems, MicrocksBuildTimeConfig config) {
       CardPageBuildItem cardPageBuildItem = new CardPageBuildItem();
 
       String microcksUIUrl = null;
-      if (!devServices.isEmpty()) {
-         microcksUIUrl = devServices.get(0).getConfig().get(CONFIG_PREFIX + "default" + HTTP_SUFFIX);
+      String serviceName = config.defaultDevService().devservices().serviceName();
+      if (!devServices.isEmpty() && serviceName != null) {
+         microcksUIUrl = devServices.get(0).getConfig().get(MicrocksProperties.CONFIG_PREFIX + serviceName + MicrocksProperties.HTTP_SUFFIX);
       }
 
       if (microcksUIUrl != null) {
@@ -397,12 +391,13 @@ public class DevServicesMicrocksProcessor {
          microcksContainer.start();
 
          // Now importing artifacts into running container.
-         initializeArtifacts(microcksContainer, devServicesConfig, outcomeBuildItem);
+         LoadedArtifacts loadedArtifacts = initializeArtifacts(microcksContainer, devServicesConfig, outcomeBuildItem);
 
          return new RunningDevService(devServicesConfig.serviceName(), microcksContainer.getContainerId(), microcksContainer::close,
                getDevServiceExposedConfig(devServicesConfig.serviceName(), "localhost",
                      microcksContainer.getMappedPort(MicrocksContainer.MICROCKS_HTTP_PORT),
-                     microcksContainer.getMappedPort(MicrocksContainer.MICROCKS_GRPC_PORT))
+                     microcksContainer.getMappedPort(MicrocksContainer.MICROCKS_GRPC_PORT),
+                     loadedArtifacts)
          );
       };
 
@@ -414,23 +409,36 @@ public class DevServicesMicrocksProcessor {
             .orElseGet(defaultMicrocksSupplier);
    }
 
-   private String getConfigPrefix(String serviceName) {
-      return CONFIG_PREFIX + serviceName;
-   }
-
    private Map<String, String> getDevServiceExposedConfig(String serviceName, String visibleHostName, Integer httpPort, Integer grpcPort) {
-      String configPrefix = getConfigPrefix(serviceName);
+      String configPrefix = MicrocksProperties.getConfigPrefix(serviceName);
 
       return Map.of(
-            configPrefix + HTTP_SUFFIX, HTTP_SCHEME + visibleHostName + ":" + httpPort.toString(),
-            configPrefix + HTTP_HOST_SUFFIX, visibleHostName,
-            configPrefix + HTTP_PORT_SUFFIX, httpPort.toString(),
-            configPrefix + GRPC_SUFFIX, HTTP_SCHEME + visibleHostName + ":" + grpcPort.toString(),
-            configPrefix + GRPC_HOST_SUFFIX, visibleHostName,
-            configPrefix + GRPC_PORT_SUFFIX, grpcPort.toString());
+            configPrefix + MicrocksProperties.HTTP_SUFFIX, HTTP_SCHEME + visibleHostName + ":" + httpPort.toString(),
+            configPrefix + MicrocksProperties.HTTP_HOST_SUFFIX, visibleHostName,
+            configPrefix + MicrocksProperties.HTTP_PORT_SUFFIX, httpPort.toString(),
+            configPrefix + MicrocksProperties.GRPC_SUFFIX, HTTP_SCHEME + visibleHostName + ":" + grpcPort.toString(),
+            configPrefix + MicrocksProperties.GRPC_HOST_SUFFIX, visibleHostName,
+            configPrefix + MicrocksProperties.GRPC_PORT_SUFFIX, grpcPort.toString());
    }
 
-   private void initializeArtifacts(MicrocksContainer microcksContainer, DevServicesConfig devServicesConfig, CurateOutcomeBuildItem outcomeBuildItem) {
+   private Map<String, String> getDevServiceExposedConfig(String serviceName, String visibleHostName, Integer httpPort,
+                                                          Integer grpcPort, LoadedArtifacts loadedArtifacts) {
+      String configPrefix = MicrocksProperties.getConfigPrefix(serviceName);
+
+      return Map.of(
+            configPrefix + MicrocksProperties.HTTP_SUFFIX, HTTP_SCHEME + visibleHostName + ":" + httpPort.toString(),
+            configPrefix + MicrocksProperties.HTTP_HOST_SUFFIX, visibleHostName,
+            configPrefix + MicrocksProperties.HTTP_PORT_SUFFIX, httpPort.toString(),
+            configPrefix + MicrocksProperties.GRPC_SUFFIX, HTTP_SCHEME + visibleHostName + ":" + grpcPort.toString(),
+            configPrefix + MicrocksProperties.GRPC_HOST_SUFFIX, visibleHostName,
+            configPrefix + MicrocksProperties.GRPC_PORT_SUFFIX, grpcPort.toString(),
+            configPrefix + MicrocksProperties.LOADED_PRIMARY_ARTIFACTS, String.join(",", loadedArtifacts.primaryArtifacts),
+            configPrefix + MicrocksProperties.LOADED_SECONDARY_ARTIFACTS, String.join(",", loadedArtifacts.secondaryArtifacts));
+   }
+
+   private LoadedArtifacts initializeArtifacts(MicrocksContainer microcksContainer, DevServicesConfig devServicesConfig, CurateOutcomeBuildItem outcomeBuildItem) {
+      LoadedArtifacts loadedArtifacts = new LoadedArtifacts();
+
       // First, load the remote artifacts if any.
       if (devServicesConfig.remoteArtifacts().isPresent()) {
          ArtifactsConfiguration remoteArtifactsConfig = devServicesConfig.remoteArtifacts().get();
@@ -455,11 +463,13 @@ public class DevServicesMicrocksProcessor {
          try {
             for (String primaryArtifact : artifactsConfig.primaries()) {
                log.infof("Load '%s' as primary artifact", primaryArtifact);
+               addToLoadedArtifacts(primaryArtifact, loadedArtifacts, true);
                microcksContainer.importAsMainArtifact(new File(primaryArtifact));
             }
             if (artifactsConfig.secondaries().isPresent()) {
                for (String secondaryArtifact : artifactsConfig.secondaries().get()) {
                   log.infof("Load '%s' as secondary artifact", secondaryArtifact);
+                  addToLoadedArtifacts(secondaryArtifact, loadedArtifacts, false);
                   microcksContainer.importAsSecondaryArtifact(new File(secondaryArtifact));
                }
             }
@@ -468,56 +478,81 @@ public class DevServicesMicrocksProcessor {
          }
       } else {
          try {
-            boolean found = scanAndLoadPrimaryArtifacts(microcksContainer, outcomeBuildItem);
+            loadedArtifacts.primaryArtifacts = scanAndLoadPrimaryArtifacts(microcksContainer, outcomeBuildItem);
             // Continue with secondary artifacts only if we found something.
-            if (found) scanAndLoadSecondaryArtifacts(microcksContainer, outcomeBuildItem);
+            if (!loadedArtifacts.primaryArtifacts.isEmpty()) {
+               loadedArtifacts.secondaryArtifacts = scanAndLoadSecondaryArtifacts(microcksContainer, outcomeBuildItem);
+            }
          } catch (Exception e) {
             log.error("Failed to load Artifacts in microcks", e);
          }
       }
+      return loadedArtifacts;
    }
 
-   private boolean scanAndLoadPrimaryArtifacts(MicrocksContainer microcksContainer, CurateOutcomeBuildItem outcomeBuildItem) throws Exception {
+   private void addToLoadedArtifacts(String artifact, LoadedArtifacts loadedArtifacts, boolean primary) {
+      String targetName = artifact;
+      if (artifact.contains("target/classes/")) {
+         targetName = artifact.substring(artifact.indexOf("target/classes/") + "target/classes/".length() + 1);
+      } else if (artifact.contains("target/test-classes")) {
+         targetName = artifact.substring(artifact.indexOf("target/test-classes/") + "target/test-classes/".length() + 1);
+      }
+
+      if (primary) {
+         loadedArtifacts.primaryArtifacts.add(targetName);
+      } else {
+         loadedArtifacts.secondaryArtifacts.add(targetName);
+      }
+   }
+
+   private List<String> scanAndLoadPrimaryArtifacts(MicrocksContainer microcksContainer, CurateOutcomeBuildItem outcomeBuildItem) throws Exception {
       return scanAndLoadArtifacts(microcksContainer, outcomeBuildItem, PRIMARY_ARTIFACTS_EXTENSIONS, true);
    }
 
-   private boolean scanAndLoadSecondaryArtifacts(MicrocksContainer microcksContainer, CurateOutcomeBuildItem outcomeBuildItem) throws Exception {
+   private List<String> scanAndLoadSecondaryArtifacts(MicrocksContainer microcksContainer, CurateOutcomeBuildItem outcomeBuildItem) throws Exception {
       return scanAndLoadArtifacts(microcksContainer, outcomeBuildItem, SECONDARY_ARTIFACTS_EXTENSIONS, false);
    }
 
-   private boolean scanAndLoadArtifacts(MicrocksContainer microcksContainer, CurateOutcomeBuildItem outcomeBuildItem,
+   private List<String> scanAndLoadArtifacts(MicrocksContainer microcksContainer, CurateOutcomeBuildItem outcomeBuildItem,
                                         List<String> validSuffixes, boolean primary) throws Exception {
-      boolean foundSomething = false;
+      List<String> loadedArtifacts = new ArrayList<>();
       List<SourceDir> resourceDirs = new ArrayList<>();
       resourceDirs.addAll(outcomeBuildItem.getApplicationModel().getApplicationModule().getMainSources().getResourceDirs());
       resourceDirs.addAll(outcomeBuildItem.getApplicationModel().getApplicationModule().getTestSources().getResourceDirs());
+
+      Map<File, String> filesAndRelativePath = new HashMap<>();
+      // Extract all the files and their relative path from resource dir.
+      // This path is the one that will be used for hot reloading so we should compute it now.
       for (SourceDir resourceDir : resourceDirs) {
-         Set<String> filesPaths = collectFiles(resourceDir.getDir(), validSuffixes);
-         for (String filePath : filesPaths) {
-            if (primary) {
-               log.infof("Load '%s' as primary artifact", filePath);
-               microcksContainer.importAsMainArtifact(new File(filePath));
-            } else {
-               log.infof("Load '%s' as secondary artifact", filePath);
-               microcksContainer.importAsSecondaryArtifact(new File(filePath));
-            }
-            foundSomething = true;
+         filesAndRelativePath.putAll(collectFilesAndRelativePaths(resourceDir.getDir(), validSuffixes));
+      }
+
+      for (Map.Entry<File, String> entry : filesAndRelativePath.entrySet()) {
+         // Record loaded even if import will fail. That way, it will be
+         // reloaded by the Hot replacement when fixed.
+         loadedArtifacts.add(entry.getValue());
+         if (primary) {
+            log.infof("Load '%s' as primary artifact", entry.getKey().getName());
+            microcksContainer.importAsMainArtifact(entry.getKey());
+         } else {
+            log.infof("Load '%s' as secondary artifact", entry.getKey().getName());
+            microcksContainer.importAsSecondaryArtifact(entry.getKey());
          }
       }
-      return foundSomething;
+      return loadedArtifacts;
    }
 
-   private Set<String> collectFiles(Path dir, List<String> validSuffixes) throws IOException {
+   private Map<File, String> collectFilesAndRelativePaths(Path dir, List<String> validSuffixes) throws IOException {
+      Map<File, String> filesPaths = new HashMap<>();
       if (Files.isDirectory(dir)) {
          try (Stream<Path> stream = Files.walk(dir, 2)) {
-            return stream
-                  .filter(Files::isRegularFile)
-                  .map(Path::toString)
-                  .filter(candidate -> endsWithOneOf(candidate, validSuffixes))
-                  .collect(Collectors.toSet());
+            stream.filter(Files::isRegularFile)
+                  .map(Path::toFile)
+                  .filter(candidate -> endsWithOneOf(candidate.getName(), validSuffixes))
+                  .forEach(file -> filesPaths.put(file, dir.relativize(file.toPath()).toString()));
          }
       }
-      return Collections.emptySet();
+      return filesPaths;
    }
 
    private static boolean endsWithOneOf(String candidate, List<String> validSuffixes) {
@@ -539,5 +574,11 @@ public class DevServicesMicrocksProcessor {
          }
       }
       return false;
+   }
+
+   /** A simple class to keep track of loaded artifacts. */
+   static class LoadedArtifacts {
+      List<String> primaryArtifacts = new ArrayList<>();
+      List<String> secondaryArtifacts = new ArrayList<>();
    }
 }
