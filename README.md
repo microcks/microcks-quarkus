@@ -34,7 +34,7 @@ If you're using Maven:
 <dependency>
   <groupId>io.github.microcks.quarkus</groupId>
   <artifactId>quarkus-microcks</artifactId>
-  <version>0.2.3</version>
+  <version>0.2.4</version>
   <scope>provided</scope>
 </dependency>
 ```
