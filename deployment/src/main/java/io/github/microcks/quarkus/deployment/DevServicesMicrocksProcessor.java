@@ -254,9 +254,12 @@ public class DevServicesMicrocksProcessor {
          if (ensembleConfiguration.postmanEnabled() || aPostmanCollectionIsPresent) {
             log.debugf("Starting a GenericContainer with Postman image '%s'", ensembleConfiguration.postmanImageName());
 
+            // Force compatibility of configured image.
+            DockerImageName imageName = DockerImageName.parse(ensembleConfiguration.postmanImageName())
+                  .asCompatibleSubstituteFor(DevServicesConfig.MICROCKS_UBER_ASYNC_MINION_LATEST);
+
             // We've got the conditions for launching a new GenericContainer with Postman !
-            GenericContainer<?> postmanContainer = new GenericContainer<>(
-                  DockerImageName.parse(ensembleConfiguration.postmanImageName()))
+            GenericContainer<?> postmanContainer = new GenericContainer<>(imageName)
                   .withNetwork(Network.SHARED)
                   .withNetworkAliases(ensembleHosts.getPostmanHost())
                   .withAccessToHost(true)
@@ -270,10 +273,13 @@ public class DevServicesMicrocksProcessor {
          if (ensembleConfiguration.asyncEnabled() || aBrokerIsPresent) {
             log.debugf("Starting a MicrocksAsyncMinionContainer with image '%s'", ensembleConfiguration.asyncImageName());
 
+            // Force compatibility of configured image.
+            DockerImageName imageName = DockerImageName.parse(ensembleConfiguration.asyncImageName())
+                  .asCompatibleSubstituteFor(DevServicesConfig.MICROCKS_UBER_ASYNC_MINION_LATEST);
+
             // We've got the conditions for launching a new MicrocksAsyncMinionContainer !
             MicrocksAsyncMinionContainer asyncMinionContainer = new MicrocksAsyncMinionContainer(Network.SHARED,
-                  DockerImageName.parse(ensembleConfiguration.asyncImageName()), microcksHost)
-                  .withAccessToHost(true);
+                  imageName, microcksHost).withAccessToHost(true);
 
             // Configure connection to a Kafka broker if any.
             if (kafkaBootstrapServers != null) {
