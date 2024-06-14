@@ -22,6 +22,7 @@ import io.quarkus.dev.spi.HotReplacementSetup;
 import io.quarkus.logging.Log;
 import org.eclipse.microprofile.config.Config;
 import org.eclipse.microprofile.config.spi.ConfigProviderResolver;
+import org.jboss.logging.Logger;
 
 import java.io.File;
 import java.net.URL;
@@ -34,6 +35,8 @@ import java.util.Optional;
  * @author laurent
  */
 public class ArtifactsHotReplacementSetup implements HotReplacementSetup {
+
+   private static final Logger log = Logger.getLogger(ArtifactsHotReplacementSetup.class);
 
    @Override
    public void setupHotDeployment(HotReplacementContext context) {
@@ -49,11 +52,11 @@ public class ArtifactsHotReplacementSetup implements HotReplacementSetup {
          Optional<String> secondaryArtifacts = globalConfig.getOptionalValue(configPrefix
                + MicrocksProperties.LOADED_SECONDARY_ARTIFACTS, String.class);
 
-         if (Log.isDebugEnabled()) {
-            Log.debugf("Microcks container Url for hot replacement: %s", microcksContainerUrl);
-            Log.debugf("Microcks primary artifacts: %s", primaryArtifacts);
-            Log.debugf("Microcks secondary artifacts: %s", secondaryArtifacts);
-            Log.debugf("Changed files: %s", String.join(",", files));
+         if (log.isInfoEnabled()) {
+            log.infof("Microcks container Url for hot replacement: %s", microcksContainerUrl);
+            log.infof("Microcks primary artifacts: %s", primaryArtifacts);
+            log.infof("Microcks secondary artifacts: %s", secondaryArtifacts);
+            log.infof("Changed files: %s", String.join(",", files));
          }
 
          // Import changed files in Microcks as primary artifacts.
