@@ -9,6 +9,7 @@
   <modules>
     <module>deployment</module>
     <module>runtime</module>
+    <module>test-framework</module>
   </modules>
 
   <name>Microcks Quarkus</name>
