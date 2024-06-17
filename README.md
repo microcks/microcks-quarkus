@@ -243,3 +243,43 @@ Order createdOrder = service.placeOrder(info);
 TestResult testResult = testRequestFuture.get();
 assertTrue(testResult.isSuccess());
 ```
+
+##### Retrieving DevServices broker information
+
+When running your AsyncAPI tests using Quarkus Dev Services for providing brokers, knowing the broker URL that 
+is addressable by Microcks is not an easy thing.
+
+To ease this, you can inject the Kafka broker URL and port using the `@InjectKafkaInternalEndpoint` annotation. 
+This annotation  as well as the `MicrocksTestCompanion` Quarkus test resource are provided by the Microcks Quarkus 
+extension within the `quarkus-microcks-test` module:
+
+```java
+[..]
+import io.github.microcks.quarkus.test.InjectKafkaInternalEndpoint;
+import io.github.microcks.quarkus.test.MicrocksTestCompanion;
+
+@QuarkusTest
+@QuarkusTestResource(MicrocksTestCompanion.class)
+public class OrderServiceTests extends BaseTest {
+
+   @Inject
+   OrderService service;
+
+   @InjectKafkaInternalEndpoint
+   String kafkaInternalEndpoint;
+
+   @Test
+   void testEventIsPublishedWhenOrderIsCreated() {
+      // Prepare a Microcks test.
+      TestRequest kafkaTest = new TestRequest.Builder()
+            .serviceId("Order Events API:0.1.0")
+            .filteredOperations(List.of("SUBSCRIBE orders-created"))
+            .runnerType(TestRunnerType.ASYNC_API_SCHEMA.name())
+            .testEndpoint("kafka://%s/orders-created".formatted(kafkaInternalEndpoint))
+            .timeout(5000L)
+            .build();
+      [..]
+   }
+}
+```
+
