@@ -24,6 +24,7 @@ Current development version is `0.2.5-SNAPSHOT`.
 [![Technical Debt](https://sonarcloud.io/api/project_badges/measure?project=microcks_microcks-quarkus&metric=sqale_index)](https://sonarcloud.io/summary/new_code?id=microcks_microcks-quarkus)
 [![Security Rating](https://sonarcloud.io/api/project_badges/measure?project=microcks_microcks-quarkus&metric=security_rating)](https://sonarcloud.io/summary/new_code?id=microcks_microcks-quarkus)
 [![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=microcks_microcks-quarkus&metric=sqale_rating)](https://sonarcloud.io/summary/new_code?id=microcks_microcks-quarkus)
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fmicrocks%2Fmicrocks-quarkus.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2Fmicrocks%2Fmicrocks-quarkus?ref=badge_shield)
 
 ## How to use it?
 
@@ -283,3 +284,7 @@ public class OrderServiceTests extends BaseTest {
 }
 ```
 
+
+
+## License
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fmicrocks%2Fmicrocks-quarkus.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2Fmicrocks%2Fmicrocks-quarkus?ref=badge_large)
