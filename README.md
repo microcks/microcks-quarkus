@@ -15,7 +15,7 @@ Want to see this extension in action? Check out our [sample application](https:/
 
 Latest released version is `0.2.6`.
 
-Current development version is `0.2.5-SNAPSHOT`.
+Current development version is `0.2.7-SNAPSHOT`.
 
 #### Sonarcloud Quality metrics
 
@@ -116,6 +116,7 @@ In order to find the correct artifacts and make difference between primary and s
 * All the files named `*postman-collection.json`, `*postman_collection.json` will be imported as **secondary** artifacts
 * All the files named `*.har` will be imported as **secondary** artifacts,
 * All the files named `*-metadata.yml`, `*-metadata.yaml` will also be imported as **secondary** artifacts,
+* All the files named `*-examples.yml`, `*-examples.yaml` will also be imported as **secondary** artifacts.
 
 If you want/need a fine control on what's loaded in container, you may use the `artifact.primaries` and `artifact.secondaries` 
 configuration properties for that. They are comma-separated lists of paths to your OpenAPI, Postman, GraphQL, gRPC, HAR, or SoapUI artifacts.

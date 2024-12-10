@@ -106,7 +106,7 @@ public class DevServicesMicrocksProcessor {
          ".proto", ".graphql", "-asyncapi.yml", "-asyncapi.yaml", "-asyncapi.json", "-soapui-project.xml");
    /** List of extensions for detecting artifacts to import as secondary ones. */
    private static final List<String> SECONDARY_ARTIFACTS_EXTENSIONS = Arrays.asList("postman-collection.json", "postman_collection.json",
-         "-metadata.yml", "-metadata.yaml", ".har");
+         "-metadata.yml", "-metadata.yaml", "-examples.yml", "-examples.yaml", ".har");
    /** List of extensions corresponding to Postman collection artifacts. */
    private static final List<String> POSTMAN_COLLECTION_EXTENSIONS = Arrays.asList("postman-collection.json", "postman_collection.json");
 
