@@ -44,10 +44,10 @@ assemble:
 files:
   active: ALWAYS
   artifacts:
-    - target/site/quarkus-microcks-parent-{{projectVersion}}.spdx-sbom.json
-    - deployment/target/site/quarkus-microcks-deployment-{{projectVersion}}.spdx-sbom.json
-    - runtime/target/site/quarkus-microcks-runtime-{{projectVersion}}.spdx-sbom.json
-    - test-framework/target/site/quarkus-microcks-test-{{projectVersion}}.spdx-sbom.json
+    - path: 'target/site/quarkus-microcks-parent-{{projectVersion}}.spdx-sbom.json'
+    - path: 'deployment/target/site/quarkus-microcks-deployment-{{projectVersion}}.spdx-sbom.json'
+    - path: 'runtime/target/site/quarkus-microcks-runtime-{{projectVersion}}.spdx-sbom.json'
+    - path: 'test-framework/target/site/quarkus-microcks-test-{{projectVersion}}.spdx-sbom.json'
 
 deploy:
   maven:
