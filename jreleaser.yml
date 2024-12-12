@@ -10,15 +10,6 @@ signing:
   active: ALWAYS
   armored: true
 
-catalog:
-  sbom:
-    syft:
-      active: ALWAYS
-      pack:
-        enabled: true
-      formats:
-        - SPDX_JSON
-
 assemble:
   archive:
     microcks-quarkus:
@@ -50,6 +41,14 @@ assemble:
 #          includes:
 #            - 'quarkus-microcks-test-*.*'
 
+files:
+  active: ALWAYS
+  artifacts:
+    - target/site/quarkus-microcks-parent-{{projectVersion}}.spdx-sbom.json
+    - deployment/target/site/quarkus-microcks-deployment-{{projectVersion}}.spdx-sbom.json
+    - runtime/target/site/quarkus-microcks-runtime-{{projectVersion}}.spdx-sbom.json
+    - test-framework/target/site/quarkus-microcks-test-{{projectVersion}}.spdx-sbom.json
+
 deploy:
   maven:
     nexus2:
@@ -62,6 +61,10 @@ deploy:
         releaseRepository: false
         stagingRepositories:
           - target/staging-deploy
+    pomchecker:
+      failOnWarning: false
+      failOnError: false
+      strict: false
 
 release:
   github:

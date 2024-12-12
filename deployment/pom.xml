@@ -9,6 +9,7 @@
 
   <artifactId>quarkus-microcks-deployment</artifactId>
   <name>Quarkus - Microcks extension</name>
+  <description>REST, GraphQL, gRPC API and SOAP mock endpoints and contract testing - directly from your specs</description>
 
   <dependencies>
     <dependency>
