@@ -49,12 +49,11 @@ jobs:
           git config user.name "microcks-bot"
           git config user.email "info@microcks.io"
           git commit -m "Releasing version ${{ github.event.inputs.version }}" .
-          git push origin ${{ github.event.inputs.branch }}
           git tag ${{ github.event.inputs.version }}
           git push origin ${{ github.event.inputs.version }}
 
       - name: Stage release artifacts
-        run: mvn --no-transfer-progress --batch-mode -Prelease clean deploy -DaltDeploymentRepository=local::file:./target/staging-deploy
+        run: mvn --no-transfer-progress --batch-mode -Prelease clean deploy -DaltDeploymentRepository=local::default::file://`pwd`/target/staging-deploy
 
       - name: Publish package with JReleaser
         env:
@@ -64,7 +63,7 @@ jobs:
           JRELEASER_GPG_SECRET_KEY: ${{ secrets.JRELEASER_GPG_SECRET_KEY }}
           JRELEASER_GPG_PUBLIC_KEY: ${{ secrets.JRELEASER_GPG_PUBLIC_KEY }}
           JRELEASER_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: mvn -Prelease jreleaser:full-release
+        run: mvn -N -Prelease jreleaser:full-release
 
       # Persist logs
       - name: JReleaser release output
