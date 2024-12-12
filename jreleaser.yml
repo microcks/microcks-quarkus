@@ -1,0 +1,74 @@
+project:
+  name: Microcks Quarkus
+  description: Microcks Quarkus extension
+  longDescription: Microcks Quarkus extension
+  copyright: The Microcks Authors
+  java:
+    version: 17
+
+signing:
+  active: ALWAYS
+  armored: true
+
+catalog:
+  sbom:
+    syft:
+      active: ALWAYS
+      pack:
+        enabled: true
+      formats:
+        - SPDX_JSON
+
+assemble:
+  archive:
+    microcks-quarkus:
+      active: ALWAYS
+      stereotype: NONE
+      options:
+        longFileMode: POSIX
+      formats:
+        - ZIP
+        - TGZ
+      fileSets:
+        - input: target/staging-deploy
+          includes:
+            - '**/*.*'
+#        - input: target
+#          output: 'io/github/microcks/quarkus/quarkus-microcks-parent/{{projectVersion}}'
+#          includes:
+#            - 'quarkus-microcks-parent-*.*'
+#        - input: deployment/target
+#          output: 'io/github/microcks/quarkus/quarkus-microcks-deployment/{{projectVersion}}'
+#          includes:
+#            - 'quarkus-microcks-deployment-*.*'
+#        - input: runtime/target
+#          output: 'io/github/microcks/quarkus/quarkus-microcks/{{projectVersion}}'
+#          includes:
+#            - 'quarkus-microcks-*.*'
+#        - input: test-framework/target
+#          output: 'io/github/microcks/quarkus/quarkus-microcks-test/{{projectVersion}}'
+#          includes:
+#            - 'quarkus-microcks-test-*.*'
+
+deploy:
+  maven:
+    nexus2:
+      sonatype:
+        active: ALWAYS
+        snapshotSupported: false
+        url: https://oss.sonatype.org/content/repositories/snapshots
+        snapshotUrl: https://oss.sonatype.org/content/repositories/snapshots
+        closeRepository: false
+        releaseRepository: false
+        stagingRepositories:
+          - target/staging-deploy
+
+release:
+  github:
+    overwrite: true
+    tagName: '{{projectVersion}}'
+    changelog:
+      formatted: ALWAYS
+      preset: conventional-commits
+      contributors:
+        format: '- {{contributorName}}{{#contributorUsernameAsLink}} ({{.}}){{/contributorUsernameAsLink}}'
