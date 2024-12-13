@@ -55,7 +55,7 @@ deploy:
       sonatype:
         active: ALWAYS
         snapshotSupported: false
-        url: https://oss.sonatype.org/service/local/staging/deploy/maven2/
+        url: https://oss.sonatype.org/service/local
         snapshotUrl: https://oss.sonatype.org/content/repositories/snapshots
         stagingProfileId: io.github.microcks
         closeRepository: false
