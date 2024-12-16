@@ -24,22 +24,6 @@ assemble:
         - input: target/staging-deploy
           includes:
             - '**/*.*'
-#        - input: target
-#          output: 'io/github/microcks/quarkus/quarkus-microcks-parent/{{projectVersion}}'
-#          includes:
-#            - 'quarkus-microcks-parent-*.*'
-#        - input: deployment/target
-#          output: 'io/github/microcks/quarkus/quarkus-microcks-deployment/{{projectVersion}}'
-#          includes:
-#            - 'quarkus-microcks-deployment-*.*'
-#        - input: runtime/target
-#          output: 'io/github/microcks/quarkus/quarkus-microcks/{{projectVersion}}'
-#          includes:
-#            - 'quarkus-microcks-*.*'
-#        - input: test-framework/target
-#          output: 'io/github/microcks/quarkus/quarkus-microcks-test/{{projectVersion}}'
-#          includes:
-#            - 'quarkus-microcks-test-*.*'
 
 files:
   active: ALWAYS
@@ -70,6 +54,7 @@ deploy:
 release:
   github:
     overwrite: true
+    releaseName: '{{tagName}}'
     tagName: '{{projectVersion}}'
     changelog:
       formatted: ALWAYS

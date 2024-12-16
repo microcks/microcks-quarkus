@@ -71,7 +71,7 @@ jobs:
             target/jreleaser/output.properties
 
       - name: Set next iteration version
-        run: mvn -B -q versions:set -DnewVersion=${{ github.event.inputs.nextVersion }}
+        run: mvn -B -q versions:set -DnewVersion=${{ github.event.inputs.nextVersion }}-SNAPSHOT
 
       - name: Commit, push and tag changes
         run: |
