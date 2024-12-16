@@ -13,9 +13,9 @@ Want to see this extension in action? Check out our [sample application](https:/
 
 ## Build Status
 
-Latest released version is `0.2.6`.
+Latest released version is `0.2.7`.
 
-Current development version is `0.2.7-SNAPSHOT`.
+Current development version is `0.2.8-SNAPSHOT`.
 
 #### Sonarcloud Quality metrics
 
