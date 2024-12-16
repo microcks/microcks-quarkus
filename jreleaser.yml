@@ -57,7 +57,7 @@ deploy:
         snapshotSupported: false
         url: https://oss.sonatype.org/service/local
         snapshotUrl: https://oss.sonatype.org/content/repositories/snapshots
-        stagingProfileId: io.github.microcks
+        stagingProfileId: c3fae58a8dda9
         closeRepository: false
         releaseRepository: false
         stagingRepositories:
