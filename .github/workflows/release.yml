@@ -12,6 +12,7 @@ on:
         description: 'Next version after release (-SNAPSHOT will be added automatically)'
         required: true
 permissions:
+  issues: write
   contents: write
   deployments: write
   id-token: write
@@ -37,12 +38,6 @@ jobs:
 
       - name: Set release version
         run: mvn -B -q versions:set -DnewVersion=${{ github.event.inputs.version }}
-
-#      - name: Commit & Push changes
-#        uses: actions-js/push@v1.5
-#        with:
-#          github_token: ${{ secrets.GITHUB_TOKEN }}
-#          message: Releasing version ${{ github.event.inputs.version }}
 
       - name: Commit, push and tag changes
         run: |
@@ -77,12 +72,6 @@ jobs:
 
       - name: Set next iteration version
         run: mvn -B -q versions:set -DnewVersion=${{ github.event.inputs.nextVersion }}
-
-#      - name: Commit & Push changes
-#        uses: actions-js/push@v1.5
-#        with:
-#          github_token: ${{ secrets.GITHUB_TOKEN }}
-#          message: Setting SNAPSHOT version ${{ github.event.inputs.nextVersion }}-SNAPSHOT
 
       - name: Commit, push and tag changes
         run: |
