@@ -11,15 +11,15 @@ on:
       nextVersion:
         description: 'Next version after release (-SNAPSHOT will be added automatically)'
         required: true
-permissions:
-  issues: write
-  contents: write
-  deployments: write
-  id-token: write
 jobs:
   release:
     name: Release
     runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      contents: write
+      deployments: write
+      id-token: write
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
