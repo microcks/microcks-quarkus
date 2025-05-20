@@ -13,9 +13,9 @@ Want to see this extension in action? Check out our [sample application](https:/
 
 ## Build Status
 
-Latest released version is `0.2.7`.
+Latest released version is `0.3.0`.
 
-Current development version is `0.2.8-SNAPSHOT`.
+Current development version is `0.3.1-SNAPSHOT`.
 
 #### Sonarcloud Quality metrics
 
@@ -56,7 +56,7 @@ If you're using Maven:
 <dependency>
   <groupId>io.github.microcks.quarkus</groupId>
   <artifactId>quarkus-microcks</artifactId>
-  <version>0.2.6</version>
+  <version>0.3.0</version>
   <scope>provided</scope>
 </dependency>
 ```
@@ -142,6 +142,29 @@ containers to set up your base API url calls. For that, you have to configure th
 ```properties
 # Specify here the Mock URL provided by microcks devservices, referencing the quarkus.microcks.default.http
 quarkus.rest-client."org.acme.order.client.PastryAPIClient".url=${quarkus.microcks.default.http}/rest/API+Pastries/0.0.1
+```
+
+### Verifying mock endpoint has been invoked
+
+Considering the Microcks container url can be retrieved in your tests using the `@ConfigProperty` annotation like below:
+
+```java
+@ConfigProperty(name= "quarkus.microcks.default.http")
+String microcksContainerUrl;
+```
+
+Once the mock endpoint has been invoked, you'd probably need to ensure that the mock have been really invoked.
+
+You can do it like this :
+
+```java
+Boolean serviceMockInvoked = MicrocksContainer.verify(microcksContainerUrl, "API Pastries", "0.0.1");
+```
+
+Or like this :
+
+```java
+Long serviceInvocationsCount = MicrocksContainer.getServiceInvocationsCount(microcksContainerUrl, "API Pastries", "0.0.1");
 ```
 
 ### Launching new contract-tests
@@ -266,6 +289,8 @@ Order createdOrder = service.placeOrder(info);
 TestResult testResult = testRequestFuture.get();
 assertTrue(testResult.isSuccess());
 ```
+
+In addition, you can use the `getEventMessagesForTestCase()` method to retrieve the events received during the test.
 
 ##### Retrieving DevServices broker information
 
