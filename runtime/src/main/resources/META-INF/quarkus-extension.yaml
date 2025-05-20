@@ -20,4 +20,4 @@ metadata:
     - "testing"
   scm:
     url: "https://github.com/microcks/microcks-quarkus"
-  status: "preview"
+  status: "stable"
