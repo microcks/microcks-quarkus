@@ -20,46 +20,48 @@ import io.quarkus.test.common.QuarkusTestResourceLifecycleManager;
 
 import java.util.Collections;
 import java.util.Map;
+
 /**
- * MicrocksTestCompaniong aims to be initialized as a QuarkusTestResource to provide access to
- * configuration properties such as broker endpoints or other magical stuff done by Microcks DevService.
+ * MicrocksTestCompaniong aims to be initialized as a QuarkusTestResource to provide access to configuration properties
+ * such as broker endpoints or other magical stuff done by Microcks DevService.
+ *
  * @author laurent
  */
 public class MicrocksTestCompanion implements QuarkusTestResourceLifecycleManager, DevServicesContext.ContextAware {
 
-   private String kafkaInternalEndpoint;
+    private String kafkaInternalEndpoint;
 
-   @Override
-   public void setIntegrationTestContext(DevServicesContext context) {
-      Map<String, String> devServicesProperties = context.devServicesProperties();
-      String kafkaBootstrapServers = devServicesProperties.get("kafka.bootstrap.servers");
-      if (kafkaBootstrapServers != null) {
-         if (kafkaBootstrapServers.contains(",")) {
-            String[] kafkaAddresses = kafkaBootstrapServers.split(",");
-            for (String kafkaAddress : kafkaAddresses) {
-               if (kafkaAddress.startsWith("PLAINTEXT://")) {
-                  kafkaInternalEndpoint = kafkaAddress.replace("PLAINTEXT://", "");
-               }
+    @Override
+    public void setIntegrationTestContext(DevServicesContext context) {
+        Map<String, String> devServicesProperties = context.devServicesProperties();
+        String kafkaBootstrapServers = devServicesProperties.get("kafka.bootstrap.servers");
+        if (kafkaBootstrapServers != null) {
+            if (kafkaBootstrapServers.contains(",")) {
+                String[] kafkaAddresses = kafkaBootstrapServers.split(",");
+                for (String kafkaAddress : kafkaAddresses) {
+                    if (kafkaAddress.startsWith("PLAINTEXT://")) {
+                        kafkaInternalEndpoint = kafkaAddress.replace("PLAINTEXT://", "");
+                    }
+                }
+            } else {
+                kafkaInternalEndpoint = kafkaBootstrapServers.substring(kafkaBootstrapServers.indexOf("://") + 3);
             }
-         } else {
-            kafkaInternalEndpoint = kafkaBootstrapServers.substring(kafkaBootstrapServers.indexOf("://") + 3);
-         }
-      }
-   }
+        }
+    }
 
-   @Override
-   public Map<String, String> start() {
-      return Collections.emptyMap();
-   }
+    @Override
+    public Map<String, String> start() {
+        return Collections.emptyMap();
+    }
 
-   @Override
-   public void stop() {
-      // Nothing to stop here.
-   }
+    @Override
+    public void stop() {
+        // Nothing to stop here.
+    }
 
-   @Override
-   public void inject(TestInjector testInjector) {
-      testInjector.injectIntoFields(this.kafkaInternalEndpoint,
-            new TestInjector.AnnotatedAndMatchesType(InjectKafkaInternalEndpoint.class, String.class));
-   }
+    @Override
+    public void inject(TestInjector testInjector) {
+        testInjector.injectIntoFields(this.kafkaInternalEndpoint,
+                new TestInjector.AnnotatedAndMatchesType(InjectKafkaInternalEndpoint.class, String.class));
+    }
 }

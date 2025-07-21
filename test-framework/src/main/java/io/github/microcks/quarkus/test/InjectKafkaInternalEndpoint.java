@@ -21,8 +21,8 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Annotation for field of String type, to receive the Kafka broker internal endpoint
- * to use for Microcks tests.
+ * Annotation for field of String type, to receive the Kafka broker internal endpoint to use for Microcks tests.
+ *
  * @author laurent
  */
 @Target({ ElementType.FIELD })
