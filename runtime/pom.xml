@@ -4,7 +4,7 @@
   <parent>
     <groupId>io.github.microcks.quarkus</groupId>
     <artifactId>quarkus-microcks-parent</artifactId>
-    <version>0.3.1-SNAPSHOT</version>
+    <version>0.4.0-SNAPSHOT</version>
   </parent>
 
   <artifactId>quarkus-microcks</artifactId>
