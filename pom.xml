@@ -54,7 +54,6 @@
     </repository>
   </distributionManagement>
 
-
   <properties>
     <compiler-plugin.version>3.14.0</compiler-plugin.version>
     <failsafe-plugin.version>${surefire-plugin.version}</failsafe-plugin.version>
@@ -209,7 +208,7 @@
           <plugin>
             <groupId>org.jreleaser</groupId>
             <artifactId>jreleaser-maven-plugin</artifactId>
-            <version>1.18.0</version>
+            <version>1.19.0</version>
             <inherited>false</inherited>
             <configuration>
               <configFile>jreleaser.yml</configFile>
