@@ -15,50 +15,7 @@
  */
 package io.github.microcks.quarkus.deployment;
 
-import io.github.microcks.quarkus.deployment.DevServicesConfig.ArtifactsConfiguration;
-import io.github.microcks.quarkus.deployment.MicrocksBuildTimeConfig.DevServiceConfiguration;
-import io.github.microcks.quarkus.runtime.MicrocksProperties;
-import io.github.microcks.quarkus.runtime.MicrocksRecorder;
-import io.github.microcks.testcontainers.MicrocksAsyncMinionContainer;
-import io.github.microcks.testcontainers.MicrocksContainer;
-import io.github.microcks.testcontainers.connection.KafkaConnection;
-
-import io.quarkus.bootstrap.workspace.SourceDir;
-import io.quarkus.builder.item.EmptyBuildItem;
-import io.quarkus.deployment.IsDevelopment;
-import io.quarkus.deployment.IsNormal;
-import io.quarkus.deployment.annotations.BuildStep;
-import io.quarkus.deployment.annotations.BuildSteps;
-import io.quarkus.deployment.annotations.Consume;
-import io.quarkus.deployment.annotations.ExecutionTime;
-import io.quarkus.deployment.annotations.Record;
-import io.quarkus.deployment.annotations.Produce;
-import io.quarkus.deployment.builditem.CuratedApplicationShutdownBuildItem;
-import io.quarkus.deployment.builditem.DevServicesLauncherConfigResultBuildItem;
-import io.quarkus.deployment.builditem.DevServicesResultBuildItem;
-import io.quarkus.deployment.builditem.DevServicesResultBuildItem.RunningDevService;
-import io.quarkus.deployment.builditem.DevServicesSharedNetworkBuildItem;
-import io.quarkus.deployment.builditem.DockerStatusBuildItem;
-import io.quarkus.deployment.builditem.LaunchModeBuildItem;
-import io.quarkus.deployment.console.ConsoleInstalledBuildItem;
-import io.quarkus.deployment.console.StartupLogCompressor;
-import io.quarkus.deployment.dev.devservices.GlobalDevServicesConfig;
-import io.quarkus.deployment.logging.LoggingSetupBuildItem;
-import io.quarkus.deployment.pkg.builditem.CurateOutcomeBuildItem;
-import io.quarkus.devservices.common.ConfigureUtil;
-import io.quarkus.devservices.common.ContainerLocator;
-import io.quarkus.devui.spi.page.CardPageBuildItem;
-import io.quarkus.devui.spi.page.Page;
-import io.quarkus.runtime.LaunchMode;
-import org.eclipse.microprofile.config.Config;
-import org.eclipse.microprofile.config.spi.ConfigProviderResolver;
-import org.jboss.logging.Logger;
-import org.testcontainers.Testcontainers;
-import org.testcontainers.containers.GenericContainer;
-import org.testcontainers.containers.Network;
-import org.testcontainers.containers.wait.strategy.Wait;
-import org.testcontainers.utility.Base58;
-import org.testcontainers.utility.DockerImageName;
+import static io.quarkus.runtime.LaunchMode.DEVELOPMENT;
 
 import java.io.Closeable;
 import java.io.File;
@@ -77,14 +34,57 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static io.quarkus.runtime.LaunchMode.DEVELOPMENT;
+import org.eclipse.microprofile.config.Config;
+import org.eclipse.microprofile.config.spi.ConfigProviderResolver;
+import org.jboss.logging.Logger;
+import org.testcontainers.Testcontainers;
+import org.testcontainers.containers.GenericContainer;
+import org.testcontainers.containers.Network;
+import org.testcontainers.containers.wait.strategy.Wait;
+import org.testcontainers.utility.Base58;
+import org.testcontainers.utility.DockerImageName;
+
+import io.quarkus.bootstrap.workspace.SourceDir;
+import io.quarkus.builder.item.EmptyBuildItem;
+import io.quarkus.deployment.IsDevelopment;
+import io.quarkus.deployment.IsNormal;
+import io.quarkus.deployment.annotations.BuildStep;
+import io.quarkus.deployment.annotations.BuildSteps;
+import io.quarkus.deployment.annotations.Consume;
+import io.quarkus.deployment.annotations.ExecutionTime;
+import io.quarkus.deployment.annotations.Produce;
+import io.quarkus.deployment.annotations.Record;
+import io.quarkus.deployment.builditem.CuratedApplicationShutdownBuildItem;
+import io.quarkus.deployment.builditem.DevServicesLauncherConfigResultBuildItem;
+import io.quarkus.deployment.builditem.DevServicesResultBuildItem;
+import io.quarkus.deployment.builditem.DevServicesResultBuildItem.RunningDevService;
+import io.quarkus.deployment.builditem.DevServicesSharedNetworkBuildItem;
+import io.quarkus.deployment.builditem.DockerStatusBuildItem;
+import io.quarkus.deployment.builditem.LaunchModeBuildItem;
+import io.quarkus.deployment.console.ConsoleInstalledBuildItem;
+import io.quarkus.deployment.console.StartupLogCompressor;
+import io.quarkus.deployment.logging.LoggingSetupBuildItem;
+import io.quarkus.deployment.pkg.builditem.CurateOutcomeBuildItem;
+import io.quarkus.devservices.common.ConfigureUtil;
+import io.quarkus.devservices.common.ContainerLocator;
+import io.quarkus.devui.spi.page.CardPageBuildItem;
+import io.quarkus.devui.spi.page.Page;
+import io.quarkus.runtime.LaunchMode;
+
+import io.github.microcks.quarkus.deployment.DevServicesConfig.ArtifactsConfiguration;
+import io.github.microcks.quarkus.deployment.MicrocksBuildTimeConfig.DevServiceConfiguration;
+import io.github.microcks.quarkus.runtime.MicrocksProperties;
+import io.github.microcks.quarkus.runtime.MicrocksRecorder;
+import io.github.microcks.testcontainers.MicrocksAsyncMinionContainer;
+import io.github.microcks.testcontainers.MicrocksContainer;
+import io.github.microcks.testcontainers.connection.KafkaConnection;
 
 /**
  * BuildSteps processor that takes care of starting/registering a Microcks container devservice
  * and its DevUI custom card.
  * @author laurent
  */
-@BuildSteps(onlyIfNot = IsNormal.class, onlyIf = { GlobalDevServicesConfig.Enabled.class })
+@BuildSteps(onlyIfNot = IsNormal.class, onlyIf = { io.quarkus.deployment.dev.devservices.DevServicesConfig.Enabled.class })
 public class DevServicesMicrocksProcessor {
 
    private static final Logger log = Logger.getLogger(DevServicesMicrocksProcessor.class);
@@ -148,7 +148,7 @@ public class DevServicesMicrocksProcessor {
          CuratedApplicationShutdownBuildItem closeBuildItem,
          CurateOutcomeBuildItem outcomeBuildItem,
          LoggingSetupBuildItem loggingSetupBuildItem,
-         GlobalDevServicesConfig devServicesConfig) {
+         io.quarkus.deployment.dev.devservices.DevServicesConfig devServicesConfig) {
 
       // Retrieve DevServices config. Only manage a default one at the moment.
       DevServiceConfiguration currentDevServicesConfig = config.defaultDevService();
@@ -180,7 +180,7 @@ public class DevServicesMicrocksProcessor {
             loggingSetupBuildItem);
       try {
          RunningDevService devService = startContainer(currentDevServicesConfig.devservices(), dockerStatusBuildItem,
-               launchMode.getLaunchMode(), outcomeBuildItem, devServicesConfig.timeout);
+               launchMode.getLaunchMode(), outcomeBuildItem, devServicesConfig.timeout());
 
          if (devService == null) {
             compressor.closeAndDumpCaptured();
@@ -350,7 +350,7 @@ public class DevServicesMicrocksProcessor {
          return null;
       }
 
-      if (!dockerStatusBuildItem.isDockerAvailable()) {
+      if (!dockerStatusBuildItem.isContainerRuntimeAvailable()) {
          log.warn("Please configure quarkus.microcks.hosts or get a working docker instance");
          return null;
       }
