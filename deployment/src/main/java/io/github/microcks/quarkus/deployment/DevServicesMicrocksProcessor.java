@@ -405,7 +405,7 @@ public class DevServicesMicrocksProcessor {
                getDevServiceExposedConfig(devServicesConfig.serviceName(), "localhost",
                      microcksContainer.getMappedPort(MicrocksContainer.MICROCKS_HTTP_PORT),
                      microcksContainer.getMappedPort(MicrocksContainer.MICROCKS_GRPC_PORT),
-                     loadedArtifacts)
+                     microcksHost, loadedArtifacts)
          );
       };
 
@@ -430,7 +430,7 @@ public class DevServicesMicrocksProcessor {
    }
 
    private Map<String, String> getDevServiceExposedConfig(String serviceName, String visibleHostName, Integer httpPort,
-                                                          Integer grpcPort, LoadedArtifacts loadedArtifacts) {
+                                                          Integer grpcPort, String internalHostName, LoadedArtifacts loadedArtifacts) {
       String configPrefix = MicrocksProperties.getConfigPrefix(serviceName);
 
       return Map.of(
@@ -440,6 +440,7 @@ public class DevServicesMicrocksProcessor {
             configPrefix + MicrocksProperties.GRPC_SUFFIX, HTTP_SCHEME + visibleHostName + ":" + grpcPort.toString(),
             configPrefix + MicrocksProperties.GRPC_HOST_SUFFIX, visibleHostName,
             configPrefix + MicrocksProperties.GRPC_PORT_SUFFIX, grpcPort.toString(),
+            configPrefix + MicrocksProperties.INTERNAL_HOST_SUFFIX, internalHostName,
             configPrefix + MicrocksProperties.LOADED_PRIMARY_ARTIFACTS, String.join(",", loadedArtifacts.primaryArtifacts),
             configPrefix + MicrocksProperties.LOADED_SECONDARY_ARTIFACTS, String.join(",", loadedArtifacts.secondaryArtifacts));
    }

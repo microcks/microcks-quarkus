@@ -34,6 +34,7 @@ public class MicrocksProperties {
    public static final String GRPC_SUFFIX = ".grpc";
    public static final String GRPC_HOST_SUFFIX = ".grpc.host";
    public static final String GRPC_PORT_SUFFIX = ".grpc.port";
+   public static final String INTERNAL_HOST_SUFFIX = ".internal.host";
    public static final String LOADED_PRIMARY_ARTIFACTS = ".primary-artifacts";
    public static final String LOADED_SECONDARY_ARTIFACTS = ".secondary-artifacts";
 
