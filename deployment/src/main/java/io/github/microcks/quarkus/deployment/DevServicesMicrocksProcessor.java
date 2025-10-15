@@ -72,6 +72,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalInt;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -176,7 +177,9 @@ public class DevServicesMicrocksProcessor {
 
       StartupLogCompressor compressor = new StartupLogCompressor(
             (launchMode.isTest() ? "(test) " : "") + "Microcks Dev Services Starting:", consoleInstalledBuildItem,
-            loggingSetupBuildItem);
+            loggingSetupBuildItem, thread -> true, s -> s != null && s.contains("ERROR")
+      );
+
       try {
          RunningDevService devService = startContainer(currentDevServicesConfig.devservices(), dockerStatusBuildItem,
                launchMode.getLaunchMode(), outcomeBuildItem, devServicesConfig.timeout());
@@ -447,19 +450,23 @@ public class DevServicesMicrocksProcessor {
       // First, load the remote artifacts if any.
       if (devServicesConfig.remoteArtifacts().isPresent()) {
          ArtifactsConfiguration remoteArtifactsConfig = devServicesConfig.remoteArtifacts().get();
-         try {
-            for (String remoteArtifactUrl : remoteArtifactsConfig.primaries()) {
-               log.infof("Load '%s' as primary remote artifact", remoteArtifactUrl);
+         for (String remoteArtifactUrl : remoteArtifactsConfig.primaries()) {
+            log.infof("Load '%s' as primary remote artifact", remoteArtifactUrl);
+            try {
                microcksContainer.downloadAsMainRemoteArtifact(remoteArtifactUrl);
+            } catch (Exception e) {
+               log.error("Failed to load Remote Artifacts in microcks", e);
             }
-            if (remoteArtifactsConfig.secondaries().isPresent()) {
-               for (String remoteArtifactUrl : remoteArtifactsConfig.secondaries().get()) {
-                  log.infof("Load '%s' as secondary remote artifact", remoteArtifactUrl);
+         }
+         if (remoteArtifactsConfig.secondaries().isPresent()) {
+            for (String remoteArtifactUrl : remoteArtifactsConfig.secondaries().get()) {
+               log.infof("Load '%s' as secondary remote artifact", remoteArtifactUrl);
+               try {
                   microcksContainer.downloadAsSecondaryRemoteArtifact(remoteArtifactUrl);
+               } catch (Exception e) {
+                  log.error("Failed to load Remote Artifacts in microcks", e);
                }
             }
-         } catch (Exception e) {
-            log.error("Failed to load Remote Artifacts in microcks", e);
          }
       }
       // Then, load or scan the local artifacts if any.
@@ -467,15 +474,13 @@ public class DevServicesMicrocksProcessor {
          ArtifactsConfiguration artifactsConfig = devServicesConfig.artifacts().get();
          try {
             for (String primaryArtifact : artifactsConfig.primaries()) {
-               log.infof("Load '%s' as primary artifact", primaryArtifact);
+               loadArtifact(microcksContainer, new File(primaryArtifact), true);
                addToLoadedArtifacts(primaryArtifact, loadedArtifacts, true);
-               microcksContainer.importAsMainArtifact(new File(primaryArtifact));
             }
             if (artifactsConfig.secondaries().isPresent()) {
                for (String secondaryArtifact : artifactsConfig.secondaries().get()) {
-                  log.infof("Load '%s' as secondary artifact", secondaryArtifact);
+                  loadArtifact(microcksContainer, new File(secondaryArtifact), false);
                   addToLoadedArtifacts(secondaryArtifact, loadedArtifacts, false);
-                  microcksContainer.importAsSecondaryArtifact(new File(secondaryArtifact));
                }
             }
          } catch (Exception e) {
@@ -510,16 +515,16 @@ public class DevServicesMicrocksProcessor {
       }
    }
 
-   private List<String> scanAndLoadPrimaryArtifacts(MicrocksContainer microcksContainer, CurateOutcomeBuildItem outcomeBuildItem) throws Exception {
+   private List<String> scanAndLoadPrimaryArtifacts(MicrocksContainer microcksContainer, CurateOutcomeBuildItem outcomeBuildItem) throws IOException {
       return scanAndLoadArtifacts(microcksContainer, outcomeBuildItem, PRIMARY_ARTIFACTS_EXTENSIONS, true);
    }
 
-   private List<String> scanAndLoadSecondaryArtifacts(MicrocksContainer microcksContainer, CurateOutcomeBuildItem outcomeBuildItem) throws Exception {
+   private List<String> scanAndLoadSecondaryArtifacts(MicrocksContainer microcksContainer, CurateOutcomeBuildItem outcomeBuildItem) throws IOException {
       return scanAndLoadArtifacts(microcksContainer, outcomeBuildItem, SECONDARY_ARTIFACTS_EXTENSIONS, false);
    }
 
    private List<String> scanAndLoadArtifacts(MicrocksContainer microcksContainer, CurateOutcomeBuildItem outcomeBuildItem,
-                                        List<String> validSuffixes, boolean primary) throws Exception {
+                                        List<String> validSuffixes, boolean primary) throws IOException {
       List<String> loadedArtifacts = new ArrayList<>();
       List<SourceDir> resourceDirs = new ArrayList<>();
       resourceDirs.addAll(outcomeBuildItem.getApplicationModel().getApplicationModule().getMainSources().getResourceDirs());
@@ -536,15 +541,23 @@ public class DevServicesMicrocksProcessor {
          // Record loaded even if import will fail. That way, it will be
          // reloaded by the Hot replacement when fixed.
          loadedArtifacts.add(entry.getValue());
-         if (primary) {
-            log.infof("Load '%s' as primary artifact", entry.getKey().getName());
-            microcksContainer.importAsMainArtifact(entry.getKey());
-         } else {
-            log.infof("Load '%s' as secondary artifact", entry.getKey().getName());
-            microcksContainer.importAsSecondaryArtifact(entry.getKey());
-         }
+         loadArtifact(microcksContainer, entry.getKey(), primary);
       }
       return loadedArtifacts;
+   }
+
+   private void loadArtifact(MicrocksContainer microcksContainer, File artifactFile, boolean primary) {
+      try {
+         if (primary) {
+            log.infof("Load '%s' as primary artifact", artifactFile.getName());
+            microcksContainer.importAsMainArtifact(artifactFile);
+         } else {
+            log.infof("Load '%s' as secondary artifact", artifactFile.getName());
+            microcksContainer.importAsSecondaryArtifact(artifactFile);
+         }
+      } catch (Exception e) {
+         log.errorf("Failed to import %s artifact '%s' in microcks", primary ? "primary" : "secondary", artifactFile.getName(), e);
+      }
    }
 
    private Map<File, String> collectFilesAndRelativePaths(Path dir, List<String> validSuffixes) throws IOException {
