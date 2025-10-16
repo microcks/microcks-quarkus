@@ -329,10 +329,10 @@ public class DevServicesMicrocksProcessor {
 
       String microcksUIUrl = null;
       String serviceName = config.defaultDevService().devservices().serviceName();
+
       if (!devServices.isEmpty() && serviceName != null) {
          microcksUIUrl = devServices.get(0).getConfig().get(MicrocksProperties.CONFIG_PREFIX + serviceName + MicrocksProperties.HTTP_SUFFIX);
       }
-
       if (microcksUIUrl != null) {
          cardPageBuildItem.addPage(Page.externalPageBuilder("Microcks UI")
                .url(microcksUIUrl)

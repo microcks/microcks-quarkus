@@ -13,7 +13,7 @@ metadata:
     - async
     - kafka
   guide: https://github.com/microcks/microcks-quarkus
-  icon-url: https://microcks.io/images/microcks-logo-blue.png
+  icon-url: https://microcks.io/images/logo/microcks-logo-blue_hu47af0efdf36fc5a7558391bac5ae3ba7_29309_374x332_resize_lanczos_3.png
   categories:
     - "web"
     - "cloud"
