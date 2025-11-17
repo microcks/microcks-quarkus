@@ -26,8 +26,7 @@ public class MicrocksProperties {
       // Hide the implicit default constructor.
    }
 
-   public static final String MICROCKS = "microcks";
-   public static final String CONFIG_PREFIX = "quarkus." + MICROCKS + ".";
+   public static final String CONFIG_PREFIX = "microcks.";
    public static final String HTTP_SUFFIX = ".http";
    public static final String HTTP_HOST_SUFFIX = ".http.host";
    public static final String HTTP_PORT_SUFFIX = ".http.port";

@@ -27,7 +27,7 @@ import java.util.Optional;
  * @author laurent
  */
 @ConfigGroup
-public interface DevServicesConfig {
+public interface MicrocksDevServicesConfig {
 
    /** Default image name for Microcks container. */
    String MICROCKS_UBER_LATEST = "quay.io/microcks/microcks-uber:latest";

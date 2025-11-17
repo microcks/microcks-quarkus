@@ -15,8 +15,7 @@
  */
 package io.github.microcks.quarkus.deployment;
 
-import io.github.microcks.quarkus.deployment.DevServicesConfig.ArtifactsConfiguration;
-import io.github.microcks.quarkus.deployment.MicrocksBuildTimeConfig.DevServiceConfiguration;
+import io.github.microcks.quarkus.deployment.MicrocksDevServicesConfig.ArtifactsConfiguration;
 import io.github.microcks.quarkus.runtime.MicrocksProperties;
 import io.github.microcks.quarkus.runtime.MicrocksRecorder;
 import io.github.microcks.testcontainers.MicrocksAsyncMinionContainer;
@@ -26,7 +25,8 @@ import io.github.microcks.testcontainers.connection.KafkaConnection;
 import io.quarkus.bootstrap.workspace.SourceDir;
 import io.quarkus.builder.item.EmptyBuildItem;
 import io.quarkus.deployment.IsDevelopment;
-import io.quarkus.deployment.IsNormal;
+import io.quarkus.deployment.IsDevServicesSupportedByLaunchMode;
+import io.quarkus.deployment.IsProduction;
 import io.quarkus.deployment.annotations.BuildStep;
 import io.quarkus.deployment.annotations.BuildSteps;
 import io.quarkus.deployment.annotations.Consume;
@@ -36,13 +36,11 @@ import io.quarkus.deployment.annotations.Record;
 import io.quarkus.deployment.builditem.CuratedApplicationShutdownBuildItem;
 import io.quarkus.deployment.builditem.DevServicesLauncherConfigResultBuildItem;
 import io.quarkus.deployment.builditem.DevServicesResultBuildItem;
-import io.quarkus.deployment.builditem.DevServicesResultBuildItem.RunningDevService;
 import io.quarkus.deployment.builditem.DevServicesSharedNetworkBuildItem;
 import io.quarkus.deployment.builditem.DockerStatusBuildItem;
 import io.quarkus.deployment.builditem.LaunchModeBuildItem;
-import io.quarkus.deployment.console.ConsoleInstalledBuildItem;
-import io.quarkus.deployment.console.StartupLogCompressor;
-import io.quarkus.deployment.logging.LoggingSetupBuildItem;
+import io.quarkus.deployment.builditem.Startable;
+import io.quarkus.deployment.dev.devservices.DevServicesConfig;
 import io.quarkus.deployment.pkg.builditem.CurateOutcomeBuildItem;
 import io.quarkus.devservices.common.ConfigureUtil;
 import io.quarkus.devservices.common.ContainerLocator;
@@ -59,12 +57,10 @@ import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.utility.Base58;
 import org.testcontainers.utility.DockerImageName;
 
-import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -72,9 +68,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalInt;
-import java.util.function.Predicate;
+import java.util.function.Function;
 import java.util.function.Supplier;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static io.quarkus.runtime.LaunchMode.DEVELOPMENT;
@@ -84,7 +79,8 @@ import static io.quarkus.runtime.LaunchMode.DEVELOPMENT;
  * and its DevUI custom card.
  * @author laurent
  */
-@BuildSteps(onlyIfNot = IsNormal.class, onlyIf = { io.quarkus.deployment.dev.devservices.DevServicesConfig.Enabled.class })
+@BuildSteps(onlyIfNot = IsProduction.class,
+      onlyIf = { IsDevServicesSupportedByLaunchMode.class, DevServicesConfig.Enabled.class })
 public class DevServicesMicrocksProcessor {
 
    private static final Logger log = Logger.getLogger(DevServicesMicrocksProcessor.class);
@@ -111,9 +107,6 @@ public class DevServicesMicrocksProcessor {
    private static final List<String> POSTMAN_COLLECTION_EXTENSIONS = Arrays.asList("postman-collection.json", "postman_collection.json");
 
 
-   private static volatile List<RunningDevService> devServices;
-   private static volatile DevServiceConfiguration capturedDevServicesConfig;
-   private static volatile boolean first = true;
    private static volatile MicrocksContainersEnsembleHosts ensembleHosts;
    private static volatile boolean aPostmanCollectionIsPresent = false;
 
@@ -126,13 +119,20 @@ public class DevServicesMicrocksProcessor {
    @BuildStep
    public Optional<DevServicesSharedNetworkBuildItem> prepareSharedNetwork(MicrocksBuildTimeConfig config) {
       // Retrieve DevServices config. Only manage a default one at the moment.
-      DevServiceConfiguration devServicesConfiguration = config.defaultDevService();
+      MicrocksDevServicesConfig devServicesConfiguration = config.defaultDevService().devservices();
 
-      if (!devServicesConfiguration.devservices().enabled()) {
+      log.info("================================");
+      log.info("Checking whether we need to prepare a shared network for Microcks DevServices...");
+
+      if (!devServicesConfiguration.enabled()) {
          // Explicitly disabled
          log.debug("Not preparing a shared network as Microcks devservices has been disabled in the config");
          return Optional.empty();
       }
+
+      log.info("Preparing a shared network for Microcks DevServices");
+      log.info("================================");
+
       return Optional.of(new DevServicesSharedNetworkBuildItem());
    }
 
@@ -141,88 +141,55 @@ public class DevServicesMicrocksProcessor {
     * We also take care of locating and re-using existing container if configured in shared modeL
     */
    @BuildStep
-   public List<DevServicesResultBuildItem> startMicrocksContainers(LaunchModeBuildItem launchMode,
+   public DevServicesResultBuildItem startMicrocksDevService(LaunchModeBuildItem launchMode,
          DockerStatusBuildItem dockerStatusBuildItem,
-         MicrocksBuildTimeConfig config,
-         Optional<ConsoleInstalledBuildItem> consoleInstalledBuildItem,
-         CuratedApplicationShutdownBuildItem closeBuildItem,
+         MicrocksBuildTimeConfig microcksBuildTimeConfig,
          CurateOutcomeBuildItem outcomeBuildItem,
-         LoggingSetupBuildItem loggingSetupBuildItem,
-         io.quarkus.deployment.dev.devservices.DevServicesConfig devServicesConfig) {
+         List<DevServicesSharedNetworkBuildItem> sharedNetworks,
+         DevServicesConfig devServicesConfig) {
 
-      // Retrieve DevServices config. Only manage a default one at the moment.
-      DevServiceConfiguration currentDevServicesConfig = config.defaultDevService();
-
-      // Figure out if we need to shut down and restart existing microcks containers
-      // if not and the microcks containers have already started we just return
-      if (devServices != null) {
-         boolean restartRequired = !currentDevServicesConfig.equals(capturedDevServicesConfig);
-         if (!restartRequired) {
-            return devServices.stream().map(RunningDevService::toBuildItem).collect(Collectors.toList());
-         }
-         for (Closeable closeable : devServices) {
-            try {
-               closeable.close();
-            } catch (Throwable e) {
-               log.error("Failed to stop microcks container", e);
-            }
-         }
-         devServices = null;
-         capturedDevServicesConfig = null;
+      // If the dev service is disabled, we return null to indicate that no dev service was started.
+      MicrocksDevServicesConfig config = microcksBuildTimeConfig.defaultDevService().devservices();
+      if (!config.enabled()) {
+         log.debug("Not starting dev services for Microcks as it has been disabled in the config.");
+         return null;
       }
 
-      // Re-initialize captured config and dev services.
-      capturedDevServicesConfig = currentDevServicesConfig;
-      List<RunningDevService> newDevServices = new ArrayList<>();
-
-      StartupLogCompressor compressor = new StartupLogCompressor(
-            (launchMode.isTest() ? "(test) " : "") + "Microcks Dev Services Starting:", consoleInstalledBuildItem,
-            loggingSetupBuildItem, thread -> true, s -> s != null && s.contains("ERROR")
-      );
-
-      try {
-         RunningDevService devService = startContainer(currentDevServicesConfig.devservices(), dockerStatusBuildItem,
-               launchMode.getLaunchMode(), outcomeBuildItem, devServicesConfig.timeout());
-
-         if (devService == null) {
-            compressor.closeAndDumpCaptured();
-         } else {
-            compressor.close();
-            newDevServices.add(devService);
-            String configKey = MicrocksProperties.getConfigPrefix(currentDevServicesConfig.devservices().serviceName())
-                  + MicrocksProperties.HTTP_SUFFIX;
-            log.infof("The '%s' microcks container is ready on %s", currentDevServicesConfig.devservices().serviceName(),
-                  devService.getConfig().get(configKey));
-         }
-      } catch (Throwable t) {
-         compressor.closeAndDumpCaptured();
-         throw new RuntimeException(t);
+      if (!dockerStatusBuildItem.isContainerRuntimeAvailable()) {
+         log.warn("Please configure quarkus.microcks.hosts or get a working docker instance");
+         return null;
       }
 
-      // Save started Dev Services.
-      devServices = newDevServices;
+      log.info("================================");
+      log.info("Shared networks for DevServices: " + sharedNetworks.size());
+      log.info("devServicesConfig.launchOnSharedNetwork(): " + devServicesConfig.launchOnSharedNetwork());
+      log.info("devServicesSharedNetworkBuildItem.get(0).getSource(): " + sharedNetworks.get(0).getSource());
 
-      if (first) {
-         first = false;
-         // Add close tasks on first run only.
-         Runnable closeTask = () -> {
-            if (devServices != null) {
-               for (Closeable closeable : devServices) {
-                  try {
-                     closeable.close();
-                  } catch (Throwable t) {
-                     log.error("Failed to stop microcks", t);
-                  }
-               }
-            }
-            first = true;
-            devServices = null;
-            capturedDevServicesConfig = null;
-         };
-         closeBuildItem.addCloseTask(closeTask, true);
-      }
+      boolean useSharedNetwork = DevServicesSharedNetworkBuildItem.isSharedNetworkRequired(devServicesConfig, sharedNetworks);
 
-      return devServices.stream().map(RunningDevService::toBuildItem).collect(Collectors.toList());
+      log.info("Starting Microcks DevServices" + (useSharedNetwork ? " using shared network" : ""));
+      log.info("================================");
+
+      Supplier<DevServicesResultBuildItem> microcksSupplier = () -> DevServicesResultBuildItem.owned()
+            .name(config.serviceName())
+            .serviceName(config.serviceName())
+            .serviceConfig(config)
+            .startable(() -> createMicrocksContainer(config, launchMode.getLaunchMode()))
+            .postStartHook(s -> importArtifacts(s.getConnectionInfo(), config, outcomeBuildItem))
+            .configProvider(getDevServiceExposedConfig(config.serviceName()))
+            .build();
+
+      return microcksContainerLocator.locateContainer(config.serviceName(), config.shared(), launchMode.getLaunchMode())
+            .map(containerAddress -> microcksContainerLocatorForGRPC.locateContainer(config.serviceName(), config.shared(), launchMode.getLaunchMode())
+                  .map( containerAddressForGRPC -> {
+                     return DevServicesResultBuildItem.discovered()
+                           .name(config.serviceName())
+                           .containerId(containerAddress.getId())
+                           .config(getDevServiceExposedConfig(config.serviceName(), containerAddress.getHost(),
+                                 containerAddress.getPort(), containerAddressForGRPC.getPort()))
+                           .build();
+                  }).orElseGet(microcksSupplier))
+            .orElseGet(microcksSupplier);
    }
 
    /**
@@ -232,6 +199,13 @@ public class DevServicesMicrocksProcessor {
    @Produce(MicrocksEnsembleBuildItem.class)
    public void completeMicrocksEnsemble(MicrocksBuildTimeConfig config, DevServicesLauncherConfigResultBuildItem devServicesConfigResult,
          CuratedApplicationShutdownBuildItem closeBuildItem) {
+
+      log.info("================================");
+      log.info("Completing Microcks DevServices Ensemble if required...");
+
+      for (Map.Entry configEntry : devServicesConfigResult.getConfig().entrySet()) {
+         log.debugf("DevServices config: %s=%s", configEntry.getKey(), configEntry.getValue());
+      }
 
       // ensembleHosts may be null if container has not been started
       // (If devservices are disabled or we couldn't locate existing containers)
@@ -250,15 +224,14 @@ public class DevServicesMicrocksProcessor {
          }
 
          // Get the ensemble configuration.
-         DevServicesConfig devServiceConfig = config.defaultDevService().devservices();
-         DevServicesConfig.EnsembleConfiguration ensembleConfiguration = devServiceConfig.ensemble();
+         MicrocksDevServicesConfig.EnsembleConfiguration ensembleConfiguration = config.defaultDevService().devservices().ensemble();
 
          if (ensembleConfiguration.postmanEnabled() || aPostmanCollectionIsPresent) {
             log.debugf("Starting a GenericContainer with Postman image '%s'", ensembleConfiguration.postmanImageName());
 
             // Force compatibility of configured image.
             DockerImageName imageName = DockerImageName.parse(ensembleConfiguration.postmanImageName())
-                  .asCompatibleSubstituteFor(DevServicesConfig.MICROCKS_UBER_ASYNC_MINION_LATEST);
+                  .asCompatibleSubstituteFor(MicrocksDevServicesConfig.MICROCKS_UBER_ASYNC_MINION_LATEST);
 
             // We've got the conditions for launching a new GenericContainer with Postman !
             GenericContainer<?> postmanContainer = new GenericContainer<>(imageName)
@@ -277,7 +250,7 @@ public class DevServicesMicrocksProcessor {
 
             // Force compatibility of configured image.
             DockerImageName imageName = DockerImageName.parse(ensembleConfiguration.asyncImageName())
-                  .asCompatibleSubstituteFor(DevServicesConfig.MICROCKS_UBER_ASYNC_MINION_LATEST);
+                  .asCompatibleSubstituteFor(MicrocksDevServicesConfig.MICROCKS_UBER_ASYNC_MINION_LATEST);
 
             // We've got the conditions for launching a new MicrocksAsyncMinionContainer !
             MicrocksAsyncMinionContainer asyncMinionContainer = new MicrocksAsyncMinionContainer(Network.SHARED,
@@ -308,6 +281,8 @@ public class DevServicesMicrocksProcessor {
             closeBuildItem.addCloseTask(asyncMinionContainer::stop, true);
          }
       }
+
+      log.info("================================");
    }
 
    /**
@@ -327,6 +302,7 @@ public class DevServicesMicrocksProcessor {
    public CardPageBuildItem pages(List<DevServicesResultBuildItem> devServicesResultBuildItems, MicrocksBuildTimeConfig config) {
       CardPageBuildItem cardPageBuildItem = new CardPageBuildItem();
 
+      /*
       String microcksUIUrl = null;
       String serviceName = config.defaultDevService().devservices().serviceName();
 
@@ -339,11 +315,85 @@ public class DevServicesMicrocksProcessor {
                .isHtmlContent()
                .icon("font-awesome-solid:plug-circle-bolt"));
       }
+      */
 
       return cardPageBuildItem;
    }
 
 
+   private Startable createMicrocksContainer(MicrocksDevServicesConfig config, LaunchMode launchMode) {
+      DockerImageName dockerImageName = DockerImageName.parse(config.imageName())
+            .asCompatibleSubstituteFor(MicrocksDevServicesConfig.MICROCKS_UBER_LATEST);
+
+      MicrocksContainer microcksContainer = new MicrocksContainer(dockerImageName);
+      microcksContainer.withAccessToHost(true);
+
+      // Adding access to the Quarkus app test port.
+      Config globalConfig = ConfigProviderResolver.instance().getConfig();
+      int testPort = globalConfig.getValue("quarkus.http.test-port", OptionalInt.class).orElse(8081);
+      if (testPort > 0) {
+         Testcontainers.exposeHostPorts(testPort);
+      }
+
+      microcksContainer.withEnv(config.containerEnv());
+
+      // Finalize label and shared network.
+      if (launchMode == DEVELOPMENT) {
+         microcksContainer.withLabel(DEV_SERVICE_LABEL, config.serviceName());
+      }
+
+      // Always launch microcks in a shared network to be able to access possible ensemble containers.
+      String microcksHost = ConfigureUtil.configureSharedNetwork(microcksContainer, config.serviceName());
+
+      // Build and store configuration for possible other hosts of the ensemble.
+      String postmanHost = String.format("%s-%s-%s-%s", MICROCKS,
+            config.serviceName(), "postman", Base58.randomString(5));
+      String asyncMinionHost = String.format("%s-%s-%s-%s", MICROCKS,
+            config.serviceName(), "async-minion", Base58.randomString(5));
+      ensembleHosts = new MicrocksContainersEnsembleHosts(microcksHost, postmanHost, asyncMinionHost);
+
+      // Set the required environment variables for running as an Ensemble.
+      microcksContainer.withEnv("POSTMAN_RUNNER_URL", HTTP_SCHEME + postmanHost + ":3000")
+            .withEnv("TEST_CALLBACK_URL", HTTP_SCHEME + microcksHost + ":" + MicrocksContainer.MICROCKS_HTTP_PORT)
+            .withEnv("ASYNC_MINION_URL", HTTP_SCHEME + asyncMinionHost + ":" + MicrocksAsyncMinionContainer.MICROCKS_ASYNC_MINION_HTTP_PORT);
+
+      return new MicrocksContainerStartable(microcksContainer);
+   }
+
+   /** */
+   static class MicrocksContainerStartable implements Startable {
+      private final MicrocksContainer container;
+
+      MicrocksContainerStartable(MicrocksContainer container) {
+         this.container = container;
+      }
+
+      @Override
+      public void start() {
+         container.start();
+      }
+
+      @Override
+      public String getConnectionInfo() {
+         return HTTP_SCHEME + "localhost:" + container.getMappedPort(MicrocksContainer.MICROCKS_HTTP_PORT);
+      }
+
+      @Override
+      public String getContainerId() {
+         return container.getContainerId();
+      }
+
+      @Override
+      public void close() throws IOException {
+         container.close();
+      }
+
+      public Integer getGrpcPort() {
+         return container.getMappedPort(MicrocksContainer.MICROCKS_GRPC_PORT);
+      }
+   }
+
+   /*
    private RunningDevService startContainer(DevServicesConfig devServicesConfig, DockerStatusBuildItem dockerStatusBuildItem,
                                             LaunchMode launchMode, CurateOutcomeBuildItem outcomeBuildItem, Optional<Duration> timeout) {
       if (!devServicesConfig.enabled()) {
@@ -358,7 +408,7 @@ public class DevServicesMicrocksProcessor {
       }
 
       DockerImageName dockerImageName = DockerImageName.parse(devServicesConfig.imageName())
-            .asCompatibleSubstituteFor(DevServicesConfig.MICROCKS_UBER_LATEST);
+            .asCompatibleSubstituteFor(MicrocksDevServicesConfig.MICROCKS_UBER_LATEST);
 
       Supplier<RunningDevService> defaultMicrocksSupplier = () -> {
          MicrocksContainer microcksContainer = new MicrocksContainer(dockerImageName);
@@ -416,6 +466,26 @@ public class DevServicesMicrocksProcessor {
                   .orElseGet(defaultMicrocksSupplier))
             .orElseGet(defaultMicrocksSupplier);
    }
+   */
+
+   private Map<String, Function<Startable, String>> getDevServiceExposedConfig(String serviceName) {
+      String configPrefix = MicrocksProperties.getConfigPrefix(serviceName);
+
+      Map<String, Function<Startable, String>> configFunctions = new HashMap<>();
+      configFunctions.put(configPrefix + MicrocksProperties.HTTP_SUFFIX, Startable::getConnectionInfo);
+      configFunctions.put(configPrefix + MicrocksProperties.HTTP_HOST_SUFFIX, s -> "localhost");
+      configFunctions.put(configPrefix + MicrocksProperties.HTTP_PORT_SUFFIX, s -> s.getConnectionInfo().substring(s.getConnectionInfo().lastIndexOf(":") + 1));
+      configFunctions.put(configPrefix + MicrocksProperties.GRPC_HOST_SUFFIX, s -> "localhost");
+      configFunctions.put(configPrefix + MicrocksProperties.GRPC_PORT_SUFFIX, s -> {
+         if (s instanceof MicrocksContainerStartable) {
+            MicrocksContainerStartable microcksStartable = (MicrocksContainerStartable) s;
+            return microcksStartable.getGrpcPort().toString();
+         }
+         return "";
+      });
+
+      return configFunctions;
+   }
 
    private Map<String, String> getDevServiceExposedConfig(String serviceName, String visibleHostName, Integer httpPort, Integer grpcPort) {
       String configPrefix = MicrocksProperties.getConfigPrefix(serviceName);
@@ -445,8 +515,10 @@ public class DevServicesMicrocksProcessor {
             configPrefix + MicrocksProperties.LOADED_SECONDARY_ARTIFACTS, String.join(",", loadedArtifacts.secondaryArtifacts));
    }
 
-   private LoadedArtifacts initializeArtifacts(MicrocksContainer microcksContainer, DevServicesConfig devServicesConfig, CurateOutcomeBuildItem outcomeBuildItem) {
+   private void importArtifacts(String connectionInfo, MicrocksDevServicesConfig devServicesConfig,
+                                CurateOutcomeBuildItem outcomeBuildItem) {
       LoadedArtifacts loadedArtifacts = new LoadedArtifacts();
+      log.infof("Importing artifacts into Microcks running at '%s'", connectionInfo);
 
       // First, load the remote artifacts if any.
       if (devServicesConfig.remoteArtifacts().isPresent()) {
@@ -454,7 +526,7 @@ public class DevServicesMicrocksProcessor {
          for (String remoteArtifactUrl : remoteArtifactsConfig.primaries()) {
             log.infof("Load '%s' as primary remote artifact", remoteArtifactUrl);
             try {
-               microcksContainer.downloadAsMainRemoteArtifact(remoteArtifactUrl);
+               MicrocksContainer.downloadAsMainRemoteArtifact(connectionInfo, remoteArtifactUrl);
             } catch (Exception e) {
                log.error("Failed to load Remote Artifacts in microcks", e);
             }
@@ -463,7 +535,7 @@ public class DevServicesMicrocksProcessor {
             for (String remoteArtifactUrl : remoteArtifactsConfig.secondaries().get()) {
                log.infof("Load '%s' as secondary remote artifact", remoteArtifactUrl);
                try {
-                  microcksContainer.downloadAsSecondaryRemoteArtifact(remoteArtifactUrl);
+                  MicrocksContainer.downloadAsSecondaryRemoteArtifact(connectionInfo, remoteArtifactUrl);
                } catch (Exception e) {
                   log.error("Failed to load Remote Artifacts in microcks", e);
                }
@@ -475,12 +547,12 @@ public class DevServicesMicrocksProcessor {
          ArtifactsConfiguration artifactsConfig = devServicesConfig.artifacts().get();
          try {
             for (String primaryArtifact : artifactsConfig.primaries()) {
-               loadArtifact(microcksContainer, new File(primaryArtifact), true);
+               loadArtifact(connectionInfo, new File(primaryArtifact), true);
                addToLoadedArtifacts(primaryArtifact, loadedArtifacts, true);
             }
             if (artifactsConfig.secondaries().isPresent()) {
                for (String secondaryArtifact : artifactsConfig.secondaries().get()) {
-                  loadArtifact(microcksContainer, new File(secondaryArtifact), false);
+                  loadArtifact(connectionInfo, new File(secondaryArtifact), false);
                   addToLoadedArtifacts(secondaryArtifact, loadedArtifacts, false);
                }
             }
@@ -489,16 +561,15 @@ public class DevServicesMicrocksProcessor {
          }
       } else {
          try {
-            loadedArtifacts.primaryArtifacts = scanAndLoadPrimaryArtifacts(microcksContainer, outcomeBuildItem);
+            loadedArtifacts.primaryArtifacts = scanAndLoadPrimaryArtifacts(connectionInfo, outcomeBuildItem);
             // Continue with secondary artifacts only if we found something.
             if (!loadedArtifacts.primaryArtifacts.isEmpty()) {
-               loadedArtifacts.secondaryArtifacts = scanAndLoadSecondaryArtifacts(microcksContainer, outcomeBuildItem);
+               loadedArtifacts.secondaryArtifacts = scanAndLoadSecondaryArtifacts(connectionInfo, outcomeBuildItem);
             }
          } catch (Exception e) {
             log.error("Failed to load Artifacts in microcks", e);
          }
       }
-      return loadedArtifacts;
    }
 
    private void addToLoadedArtifacts(String artifact, LoadedArtifacts loadedArtifacts, boolean primary) {
@@ -516,16 +587,16 @@ public class DevServicesMicrocksProcessor {
       }
    }
 
-   private List<String> scanAndLoadPrimaryArtifacts(MicrocksContainer microcksContainer, CurateOutcomeBuildItem outcomeBuildItem) throws IOException {
-      return scanAndLoadArtifacts(microcksContainer, outcomeBuildItem, PRIMARY_ARTIFACTS_EXTENSIONS, true);
+   private List<String> scanAndLoadPrimaryArtifacts(String connectionInfo, CurateOutcomeBuildItem outcomeBuildItem) throws IOException {
+      return scanAndLoadArtifacts(connectionInfo, outcomeBuildItem, PRIMARY_ARTIFACTS_EXTENSIONS, true);
    }
 
-   private List<String> scanAndLoadSecondaryArtifacts(MicrocksContainer microcksContainer, CurateOutcomeBuildItem outcomeBuildItem) throws IOException {
-      return scanAndLoadArtifacts(microcksContainer, outcomeBuildItem, SECONDARY_ARTIFACTS_EXTENSIONS, false);
+   private List<String> scanAndLoadSecondaryArtifacts(String connectionInfo, CurateOutcomeBuildItem outcomeBuildItem) throws IOException {
+      return scanAndLoadArtifacts(connectionInfo, outcomeBuildItem, SECONDARY_ARTIFACTS_EXTENSIONS, false);
    }
 
-   private List<String> scanAndLoadArtifacts(MicrocksContainer microcksContainer, CurateOutcomeBuildItem outcomeBuildItem,
-                                        List<String> validSuffixes, boolean primary) throws IOException {
+   private List<String> scanAndLoadArtifacts(String connectionInfo, CurateOutcomeBuildItem outcomeBuildItem,
+                                             List<String> validSuffixes, boolean primary) throws IOException {
       List<String> loadedArtifacts = new ArrayList<>();
       List<SourceDir> resourceDirs = new ArrayList<>();
       resourceDirs.addAll(outcomeBuildItem.getApplicationModel().getApplicationModule().getMainSources().getResourceDirs());
@@ -542,20 +613,15 @@ public class DevServicesMicrocksProcessor {
          // Record loaded even if import will fail. That way, it will be
          // reloaded by the Hot replacement when fixed.
          loadedArtifacts.add(entry.getValue());
-         loadArtifact(microcksContainer, entry.getKey(), primary);
+         loadArtifact(connectionInfo, entry.getKey(), primary);
       }
       return loadedArtifacts;
    }
 
-   private void loadArtifact(MicrocksContainer microcksContainer, File artifactFile, boolean primary) {
+   private void loadArtifact(String connectionInfo, File artifactFile, boolean primary) {
       try {
-         if (primary) {
-            log.infof("Load '%s' as primary artifact", artifactFile.getName());
-            microcksContainer.importAsMainArtifact(artifactFile);
-         } else {
-            log.infof("Load '%s' as secondary artifact", artifactFile.getName());
-            microcksContainer.importAsSecondaryArtifact(artifactFile);
-         }
+         log.infof("Load '%s' as %s artifact", artifactFile.getName(), primary ? "primary" : "secondary");
+         MicrocksContainer.importArtifact(connectionInfo, artifactFile, primary);
       } catch (Exception e) {
          log.errorf("Failed to import %s artifact '%s' in microcks", primary ? "primary" : "secondary", artifactFile.getName(), e);
       }
