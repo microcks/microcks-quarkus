@@ -264,7 +264,7 @@ public class DevServicesMicrocksProcessor {
             GenericContainer<?> postmanContainer = new GenericContainer<>(imageName)
                   .withNetwork(Network.SHARED)
                   .withNetworkAliases(ensembleHosts.getPostmanHost())
-                  .withAccessToHost(true)
+                  .withAccessToHost(devServiceConfig.hostAccess())
                   .waitingFor(Wait.forLogMessage(".*postman-runtime wrapper listening on port.*", 1));
 
             postmanContainer.start();
@@ -281,7 +281,7 @@ public class DevServicesMicrocksProcessor {
 
             // We've got the conditions for launching a new MicrocksAsyncMinionContainer !
             MicrocksAsyncMinionContainer asyncMinionContainer = new MicrocksAsyncMinionContainer(Network.SHARED,
-                  imageName, microcksHost).withAccessToHost(true);
+                  imageName, microcksHost).withAccessToHost(devServiceConfig.hostAccess());
 
             // Configure connection to a Kafka broker if any.
             if (kafkaBootstrapServers != null) {
@@ -364,11 +364,11 @@ public class DevServicesMicrocksProcessor {
          MicrocksContainer microcksContainer = new MicrocksContainer(dockerImageName);
 
          // Configure access to host - getting test-port from config or defaulting to 8081.
-         microcksContainer.withAccessToHost(true);
+         microcksContainer.withAccessToHost(devServiceConfig.hostAccess());
          Config globalConfig = ConfigProviderResolver.instance().getConfig();
          int testPort = globalConfig.getValue("quarkus.http.test-port", OptionalInt.class).orElse(8081);
 
-         if (testPort > 0) {
+         if (testPort > 0 && devServiceConfig.hostAccess()) {
             Testcontainers.exposeHostPorts(testPort);
          }
 
