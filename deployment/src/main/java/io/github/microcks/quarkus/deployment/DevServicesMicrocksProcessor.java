@@ -364,11 +364,11 @@ public class DevServicesMicrocksProcessor {
          MicrocksContainer microcksContainer = new MicrocksContainer(dockerImageName);
 
          // Configure access to host - getting test-port from config or defaulting to 8081.
-         microcksContainer.withAccessToHost(devServiceConfig.hostAccess());
+         microcksContainer.withAccessToHost(devServicesConfig.hostAccess());
          Config globalConfig = ConfigProviderResolver.instance().getConfig();
          int testPort = globalConfig.getValue("quarkus.http.test-port", OptionalInt.class).orElse(8081);
 
-         if (testPort > 0 && devServiceConfig.hostAccess()) {
+         if (testPort > 0 && devServicesConfig.hostAccess()) {
             Testcontainers.exposeHostPorts(testPort);
          }
 
