@@ -12,7 +12,7 @@
   <description>REST, GraphQL, gRPC API and SOAP mock endpoints and contract testing - directly from your specs</description>
 
   <properties>
-    <microcks-testcontainers.version>0.4.1</microcks-testcontainers.version>
+    <microcks-testcontainers.version>0.4.2</microcks-testcontainers.version>
   </properties>
 
   <dependencies>
