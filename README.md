@@ -13,9 +13,9 @@ Want to see this extension in action? Check out our [sample application](https:/
 
 ## Build Status
 
-Latest released version is `0.4.1`.
+Latest released version is `0.4.2`.
 
-Current development version is `0.4.2-SNAPSHOT`.
+Current development version is `0.4.3-SNAPSHOT`.
 
 #### Sonarcloud Quality metrics
 
@@ -62,12 +62,12 @@ If you're using Maven:
 <dependency>
   <groupId>io.github.microcks.quarkus</groupId>
   <artifactId>quarkus-microcks</artifactId>
-  <version>0.4.1</version>
+  <version>0.4.2</version>
   <scope>provided</scope>
 </dependency>
 ```
 
-Don't forget to specify the `provided` scope as the extension is just for easing your life during development mode and tests 👻
+Remember to specify the `provided` scope as the extension is just for easing your life during development mode and tests 👻
 
 ### Configuring the Dev Services
 
@@ -203,6 +203,44 @@ The `TestResult` gives you access to all details regarding success of failure on
 
 A comprehensive Quarkus demo application illustrating both usages is available here: [quarkus-order-service](https://github.com/microcks/api-lifecycle/tree/master/shift-left-demo/quarkus-order-service).
 
+### Using authentication Secrets
+
+It's a common need to authenticate to external systems like Http/Git repositories or external brokers. Typically, you may need
+to provide credentials for Microcks to download remote artifacts. You can declare secrets in your `application.properties` file:
+
+```properties
+# For a basic secret named 'my-secret'.
+quarkus.microcks.devservices.secrets.my-secret.username=my-username              // Basic secret needs a username and password
+quarkus.microcks.devservices.secrets.my-secret.password=env:REPOSITORY_PASSWORD  // Password will be extracted from env variable
+quarkus.microcks.devservices.secrets.my-secret.description=My secret description // Optional: human friendly description if you access the Microcks UI
+
+# For a token-based secret named 'my-token'.
+quarkus.microcks.devservices.secrets.my-token.token=env:REPOSITORY_TOKEN        // Token secret needs a token that will be extracted from env variable
+quarkus.microcks.devservices.secrets.my-token.token-header=x-my-token           // Optional: if token is not using the standard 'Authorization: Bearer <token>' header form
+quarkus.microcks.devservices.secrets.my-token.description=My secret description // Optional: human friendly description if you access the Microcks UI
+```
+
+Specifying secrets allows the creation of `Secrets` object in the Microcks container on Dev Service startup. 
+
+You can then reference these secrets in your remote artifact URLs using an additional `|` separator with the secret name,
+like this:
+
+```properties
+quarkus.microcks.devservices.remote-artifacts.primaries=https://raw.githubusercontent.com/myorganization/private-repo/main/contracts/openapi.yaml|my-token
+```
+
+You can also reuse these secrets when configuring your contract-tests like this:
+
+```java
+TestRequest testRequest = new TestRequest.Builder()
+      .serviceId("Pastry orders API:0.1.0")
+      .runnerType(TestRunnerType.ASYNC_API_SCHEMA.name())
+      .testEndpoint("sqs://eu-east-1/pastry-orders?overrideUrl=http://localstack:45566")
+      .secretName("my-secret")
+      .timeout(5000L)
+      .build();
+```
+
 ### Configure your Microcks image
 
 By default, Microcks Dev Service will use the `quay.io/microcks/microcks-uber:latest` image that is the latest stable one.
@@ -215,10 +253,8 @@ quarkus.microcks.devservices.image-name=quay.io/microcks/microcks-uber:nightly
 
 ### Advanced features with Async and Postman
 
-Starting with version `0.2.0` the Microcks Dev Service also integrates Async API/Event Driven Architecture features and also
-allow you to implement
-[Different levels of API contract testing](https://medium.com/@lbroudoux/different-levels-of-api-contract-testing-with-microcks-ccc0847f8c97)
-in your Inner Loop!
+Microcks Dev Service also integrates Async API/Event Driven Architecture features and also allow you to implement
+[Different levels of API contract testing](https://medium.com/@lbroudoux/different-levels-of-api-contract-testing-with-microcks-ccc0847f8c97) in your Inner Loop!
 
 Based on the artifacts the Dev Service discovered or forced with configuration properties, the Dev Service may start additional containers
 (`microcks-async-minion` and `microcks-postman-runtime`) that you may use for contract-testing. The group of containers has been

@@ -21,7 +21,9 @@ import io.github.microcks.quarkus.runtime.MicrocksProperties;
 import io.github.microcks.quarkus.runtime.MicrocksRecorder;
 import io.github.microcks.testcontainers.MicrocksAsyncMinionContainer;
 import io.github.microcks.testcontainers.MicrocksContainer;
+import io.github.microcks.testcontainers.RemoteArtifact;
 import io.github.microcks.testcontainers.connection.KafkaConnection;
+import io.github.microcks.testcontainers.model.Secret;
 
 import io.quarkus.bootstrap.workspace.SourceDir;
 import io.quarkus.builder.item.EmptyBuildItem;
@@ -72,7 +74,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalInt;
-import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -398,8 +399,31 @@ public class DevServicesMicrocksProcessor {
 
          microcksContainer.start();
 
+         // First, if we have secrets, we must load them and track them.
+         List<String> loadedSecrets = new ArrayList<>();
+         if (devServicesConfig.secrets() != null && !devServicesConfig.secrets().isEmpty()) {
+            Map<String, DevServicesConfig.SecretConfiguration> secretConfigurations = devServicesConfig.secrets();
+            for (Map.Entry<String, DevServicesConfig.SecretConfiguration> secretConfiguration : secretConfigurations.entrySet()) {
+               DevServicesConfig.SecretConfiguration secretValue = secretConfiguration.getValue();
+               Secret secret = new Secret.Builder().name(secretConfiguration.getKey())
+                       .description(secretValue.description().orElse(null))
+                       .username(secretValue.username().orElse(null))
+                       .password(getConfidentialValue(secretValue.password().orElse(null)))
+                       .token(getConfidentialValue(secretValue.token().orElse(null)))
+                       .tokenHeader(secretValue.tokenHeader().orElse(null))
+                       .build();
+
+               try {
+                  microcksContainer.createSecret(secret);
+                  loadedSecrets.add(secretConfiguration.getKey());
+               } catch (Exception e) {
+                  log.warn("Failed to load secret in Microcks", e);
+               }
+            }
+         }
+
          // Now importing artifacts into running container.
-         LoadedArtifacts loadedArtifacts = initializeArtifacts(microcksContainer, devServicesConfig, outcomeBuildItem);
+         LoadedArtifacts loadedArtifacts = initializeArtifacts(microcksContainer, devServicesConfig, loadedSecrets, outcomeBuildItem);
 
          return new RunningDevService(devServicesConfig.serviceName(), microcksContainer.getContainerId(), microcksContainer::close,
                getDevServiceExposedConfig(devServicesConfig.serviceName(), "localhost",
@@ -445,29 +469,26 @@ public class DevServicesMicrocksProcessor {
             configPrefix + MicrocksProperties.LOADED_SECONDARY_ARTIFACTS, String.join(",", loadedArtifacts.secondaryArtifacts));
    }
 
-   private LoadedArtifacts initializeArtifacts(MicrocksContainer microcksContainer, DevServicesConfig devServicesConfig, CurateOutcomeBuildItem outcomeBuildItem) {
+   private String getConfidentialValue(String value) {
+      // Check if value container an env: prefix which means we should retrieve the actual value for system environment variable.
+      // In a more advanced scenario, we could retrieve value from vault or other secret management system.
+      if (value != null && value.startsWith("env:")) {
+         String envVarName = value.substring(4);
+         return System.getenv(envVarName);
+      }
+      return value;
+   }
+
+   private LoadedArtifacts initializeArtifacts(MicrocksContainer microcksContainer, DevServicesConfig devServicesConfig,
+                                               List<String> availableSecrets, CurateOutcomeBuildItem outcomeBuildItem) {
       LoadedArtifacts loadedArtifacts = new LoadedArtifacts();
 
       // First, load the remote artifacts if any.
       if (devServicesConfig.remoteArtifacts().isPresent()) {
          ArtifactsConfiguration remoteArtifactsConfig = devServicesConfig.remoteArtifacts().get();
-         for (String remoteArtifactUrl : remoteArtifactsConfig.primaries()) {
-            log.infof("Load '%s' as primary remote artifact", remoteArtifactUrl);
-            try {
-               microcksContainer.downloadAsMainRemoteArtifact(remoteArtifactUrl);
-            } catch (Exception e) {
-               log.error("Failed to load Remote Artifacts in microcks", e);
-            }
-         }
+         loadRemoteArtifacts(remoteArtifactsConfig.primaries(), microcksContainer, availableSecrets, true);
          if (remoteArtifactsConfig.secondaries().isPresent()) {
-            for (String remoteArtifactUrl : remoteArtifactsConfig.secondaries().get()) {
-               log.infof("Load '%s' as secondary remote artifact", remoteArtifactUrl);
-               try {
-                  microcksContainer.downloadAsSecondaryRemoteArtifact(remoteArtifactUrl);
-               } catch (Exception e) {
-                  log.error("Failed to load Remote Artifacts in microcks", e);
-               }
-            }
+            loadRemoteArtifacts(remoteArtifactsConfig.secondaries().get(), microcksContainer, availableSecrets, false);
          }
       }
       // Then, load or scan the local artifacts if any.
@@ -499,6 +520,31 @@ public class DevServicesMicrocksProcessor {
          }
       }
       return loadedArtifacts;
+   }
+
+   private void loadRemoteArtifacts(List<String> remoteArtifactsUrls, MicrocksContainer microcksContainer,
+                                    List<String> availableSecrets, boolean primary) {
+      for (String remoteArtifactUrl : remoteArtifactsUrls) {
+         log.infof("Load '%s' as %s remote artifact", remoteArtifactUrl, primary ? "primary" : "secondary");
+
+         String secretName = null;
+         if (remoteArtifactUrl.contains("|")) {
+            String[] parts = remoteArtifactUrl.split("\\|", 2);
+            remoteArtifactUrl = parts[0];
+            secretName = parts[1];
+            if (!availableSecrets.contains(secretName)) {
+               log.warnf("Skipping remote artifact '%s' as its associated secret '%s' is not available", remoteArtifactUrl, secretName);
+               continue;
+            }
+            log.infof("Using secret '%s' for remote artifact '%s'", secretName, remoteArtifactUrl);
+         }
+
+         try {
+            microcksContainer.downloadRemoteArtifact(new RemoteArtifact(remoteArtifactUrl, secretName), primary);
+         } catch (Exception e) {
+            log.error("Failed to load Remote Artifacts in microcks", e);
+         }
+      }
    }
 
    private void addToLoadedArtifacts(String artifact, LoadedArtifacts loadedArtifacts, boolean primary) {
