@@ -13,9 +13,9 @@ Want to see this extension in action? Check out our [sample application](https:/
 
 ## Build Status
 
-Latest released version is `0.4.2`.
+Latest released version is `0.4.3`.
 
-Current development version is `0.4.3-SNAPSHOT`.
+Current development version is `0.4.4-SNAPSHOT`.
 
 #### Sonarcloud Quality metrics
 
@@ -48,10 +48,10 @@ To get involved with our community, please make sure you are familiar with the p
 
 ## Versions
 
-| DevService          | Quarkus LTS | Microcks Version                          |
-|---------------------|-------------|-------------------------------------------|
-| `0.1.0` to `0.3.0`  | `3.15.x`    | `1.10.x`, `1.11.x`, `1.12.x` and `nightly`|
-| `0.4.0` and above   | `3.20.x`    | `1.10.x`, `1.11.x`, `1.12.x` and `nightly` |
+| DevService          | Quarkus LTS | Microcks Version                                     |
+|---------------------|-------------|------------------------------------------------------|
+| `0.1.0` to `0.3.0`  | `3.15.x`    | `1.10.x`, `1.11.x`, `1.12.x` and `nightly`           |
+| `0.4.0` and above   | `3.20.x`    | `1.10.x`, `1.11.x`, `1.12.x`, `1.13.x` and `nightly` |
 
 ## How to use it?
 
@@ -62,7 +62,7 @@ If you're using Maven:
 <dependency>
   <groupId>io.github.microcks.quarkus</groupId>
   <artifactId>quarkus-microcks</artifactId>
-  <version>0.4.2</version>
+  <version>0.4.3</version>
   <scope>provided</scope>
 </dependency>
 ```
