@@ -367,10 +367,11 @@ public class DevServicesMicrocksProcessor {
          // Configure access to host - getting test-port from config or defaulting to 8081.
          microcksContainer.withAccessToHost(devServicesConfig.hostAccess());
          Config globalConfig = ConfigProviderResolver.instance().getConfig();
+         int devPort = globalConfig.getValue("quarkus.http.port", OptionalInt.class).orElse(8080);
          int testPort = globalConfig.getValue("quarkus.http.test-port", OptionalInt.class).orElse(8081);
 
          if (testPort > 0 && devServicesConfig.hostAccess()) {
-            Testcontainers.exposeHostPorts(testPort);
+            Testcontainers.exposeHostPorts(devPort, testPort);
          }
 
          // Add envs and timeout if provided.
