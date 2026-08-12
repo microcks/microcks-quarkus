@@ -48,6 +48,12 @@ public interface MicrocksDevServicesConfig {
    boolean enabled();
 
    /**
+    * Option to disable host access - can be used for issues with kubernetes-client dev services compatability
+    */
+   @WithDefault("true")
+   boolean hostAccess();
+
+   /**
     * The container image name to use, for container based DevServices providers.
     * Use an image based on or derived from: {@code quay.io/microcks/microcks-uber:latest}.
     */
@@ -97,6 +103,11 @@ public interface MicrocksDevServicesConfig {
    Optional<ArtifactsConfiguration> remoteArtifacts();
 
    /**
+    * The secrets to load within Microcks container.
+    */
+   Map<String, SecretConfiguration> secrets();
+
+   /**
     * The Ensemble configuration for optional additional features.
     */
    EnsembleConfiguration ensemble();
@@ -115,6 +126,34 @@ public interface MicrocksDevServicesConfig {
        * This list is for artifacts to load as secondary ones.
        */
       Optional<List<String>> secondaries();
+   }
+
+   /**
+    * Configuration for Secrets to load within Microcks container.
+    */
+   @ConfigGroup
+   public interface SecretConfiguration {
+      /**
+       * The secret description.
+       */
+      Optional<String> description();
+
+      /**
+       * Optional secret username if basic authentication is used.
+       */
+      Optional<String> username();
+      /**
+       * Optional secret password if basic authentication is used.
+       */
+      Optional<String> password();
+      /**
+       * Optional secret token if token-based authentication is used.
+       */
+      Optional<String> token();
+      /**
+       * Optional secret token header if not using default 'Authorization: Bearer' header form.
+       */
+      Optional<String> tokenHeader();
    }
 
    /**

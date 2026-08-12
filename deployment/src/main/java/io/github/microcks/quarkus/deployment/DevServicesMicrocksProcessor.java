@@ -15,23 +15,15 @@
  */
 package io.github.microcks.quarkus.deployment;
 
-import java.io.File;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.OptionalInt;
-import java.util.function.Function;
-import java.util.function.Supplier;
-
 import io.github.microcks.quarkus.deployment.MicrocksDevServicesConfig.ArtifactsConfiguration;
 import io.github.microcks.quarkus.runtime.MicrocksJsonRPCService;
 import io.github.microcks.quarkus.runtime.MicrocksProperties;
 import io.github.microcks.testcontainers.MicrocksAsyncMinionContainer;
 import io.github.microcks.testcontainers.MicrocksContainer;
+import io.github.microcks.testcontainers.RemoteArtifact;
 import io.github.microcks.testcontainers.connection.KafkaConnection;
+import io.github.microcks.testcontainers.model.Secret;
+
 import io.quarkus.arc.processor.BuiltinScope;
 import io.quarkus.builder.item.MultiBuildItem;
 import io.quarkus.deployment.Capabilities;
@@ -67,6 +59,17 @@ import org.testcontainers.containers.Network;
 import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.utility.Base58;
 import org.testcontainers.utility.DockerImageName;
+
+import java.io.File;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.OptionalInt;
+import java.util.function.Function;
+import java.util.function.Supplier;
 
 import static io.quarkus.runtime.LaunchMode.DEVELOPMENT;
 
@@ -181,7 +184,10 @@ public class DevServicesMicrocksProcessor {
                   .name(MicrocksQuarkusProcessor.FEATURE)
                   .serviceConfig(config)
                   .startable(microcksSupplier)
-                  .postStartHook(s -> importArtifacts(scanResults, config, s.getConnectionInfo()))
+                  .postStartHook(s -> {
+                     List<String> loadedSecrets = importSecrets(config, s.getConnectionInfo());
+                     importArtifacts(scanResults, loadedSecrets, config, s);
+                  })
                   .configProvider(getDevServiceExposedConfig(config.serviceName()))
                   .build());
          } else {
@@ -388,13 +394,15 @@ public class DevServicesMicrocksProcessor {
             .asCompatibleSubstituteFor(MicrocksDevServicesConfig.MICROCKS_UBER_LATEST);
 
       MicrocksContainer microcksContainer = new MicrocksContainer(dockerImageName);
-      microcksContainer.withAccessToHost(true);
+      microcksContainer.withAccessToHost(config.hostAccess());
+      //microcksContainer.withDebugLogLevel();
 
       // Adding access to the Quarkus app test port.
       Config globalConfig = ConfigProviderResolver.instance().getConfig();
+      int devPort = globalConfig.getValue("quarkus.http.port", OptionalInt.class).orElse(8080);
       int testPort = globalConfig.getValue("quarkus.http.test-port", OptionalInt.class).orElse(8081);
-      if (testPort > 0) {
-         Testcontainers.exposeHostPorts(testPort);
+      if (testPort > 0 && config.hostAccess()) {
+         Testcontainers.exposeHostPorts(devPort, testPort);
       }
 
       microcksContainer.withEnv(config.containerEnv());
@@ -423,13 +431,28 @@ public class DevServicesMicrocksProcessor {
       return new MicrocksContainerStartable(microcksContainer);
    }
 
-   /**
-    *
-    */
+   /** Simple wrapper around MicrocksContainer. */
    static class MicrocksContainerStartable extends GenericContainerStartable {
+
+      private String loadedPrimaryArtifacts = "";
+      private String loadedSecondaryArtifacts = "";
 
       MicrocksContainerStartable(MicrocksContainer container) {
          super(container, MicrocksContainer.MICROCKS_HTTP_PORT);
+      }
+
+      public void setLoadedPrimaryArtifacts(String loadedPrimaryArtifacts) {
+         this.loadedPrimaryArtifacts = loadedPrimaryArtifacts;
+      }
+      public String getLoadedPrimaryArtifacts() {
+         return loadedPrimaryArtifacts;
+      }
+
+      public void setLoadedSecondaryArtifacts(String loadedSecondaryArtifacts) {
+         this.loadedSecondaryArtifacts = loadedSecondaryArtifacts;
+      }
+      public String getLoadedSecondaryArtifacts() {
+         return loadedSecondaryArtifacts;
       }
 
       public Integer getGrpcPort() {
@@ -437,6 +460,7 @@ public class DevServicesMicrocksProcessor {
       }
    }
 
+   /** Simple wrapper around MicrocksAsyncMinionContainer. */
    static class MinionContainerStartable extends GenericContainerStartable {
 
       private String kafkaBootstrapServersFromDevService = null;
@@ -473,6 +497,7 @@ public class DevServicesMicrocksProcessor {
       }
    }
 
+   /** A startable for a GenericContainer. */
    static class GenericContainerStartable<T extends GenericContainer<T>> implements Startable {
       protected final GenericContainer<T> container;
       private final int portNumber;
@@ -509,7 +534,6 @@ public class DevServicesMicrocksProcessor {
       public void close() throws IOException {
          container.close();
       }
-
    }
 
    private Map<String, Function<MicrocksContainerStartable, String>> getDevServiceExposedConfig(String serviceName) {
@@ -521,6 +545,8 @@ public class DevServicesMicrocksProcessor {
       configFunctions.put(configPrefix + MicrocksProperties.HTTP_PORT_SUFFIX, s -> s.getConnectionInfo().substring(s.getConnectionInfo().lastIndexOf(":") + 1));
       configFunctions.put(configPrefix + MicrocksProperties.GRPC_HOST_SUFFIX, s -> "localhost");
       configFunctions.put(configPrefix + MicrocksProperties.GRPC_PORT_SUFFIX, s -> s.getGrpcPort().toString());
+      configFunctions.put(configPrefix + MicrocksProperties.LOADED_PRIMARY_ARTIFACTS, MicrocksContainerStartable::getLoadedPrimaryArtifacts);
+      configFunctions.put(configPrefix + MicrocksProperties.LOADED_SECONDARY_ARTIFACTS, MicrocksContainerStartable::getLoadedSecondaryArtifacts);
 
       return configFunctions;
    }
@@ -575,30 +601,54 @@ public class DevServicesMicrocksProcessor {
       }
    }
 
-   private void importArtifacts(ScanResultsBuildItem scanResults, MicrocksDevServicesConfig devServicesConfig, String connectionInfo) {
+   private List<String> importSecrets(MicrocksDevServicesConfig devServicesConfig, String connectionInfo) {
+      List<String> loadedSecrets = new ArrayList<>();
+      log.infof("Importing secrets into Microcks running at '%s'", connectionInfo);
+      if (devServicesConfig.secrets() != null && !devServicesConfig.secrets().isEmpty()) {
+         Map<String, MicrocksDevServicesConfig.SecretConfiguration> secretConfigurations = devServicesConfig.secrets();
+         for (Map.Entry<String, MicrocksDevServicesConfig.SecretConfiguration> secretConfiguration : secretConfigurations.entrySet()) {
+            MicrocksDevServicesConfig.SecretConfiguration secretValue = secretConfiguration.getValue();
+            Secret secret = new Secret.Builder().name(secretConfiguration.getKey())
+                  .description(secretValue.description().orElse(null))
+                  .username(secretValue.username().orElse(null))
+                  .password(getConfidentialValue(secretValue.password().orElse(null)))
+                  .token(getConfidentialValue(secretValue.token().orElse(null)))
+                  .tokenHeader(secretValue.tokenHeader().orElse(null))
+                  .build();
+
+            try {
+               MicrocksContainer.createSecret(connectionInfo, secret);
+               loadedSecrets.add(secretConfiguration.getKey());
+            } catch (Exception e) {
+               log.error("Failed to load Remote Artifacts in microcks", e);
+            }
+         }
+      }
+      return loadedSecrets;
+   }
+
+   private String getConfidentialValue(String value) {
+      // Check if value container an env: prefix which means we should retrieve the actual value for system environment variable.
+      // In a more advanced scenario, we could retrieve value from vault or other secret management system.
+      if (value != null && value.startsWith("env:")) {
+         String envVarName = value.substring(4);
+         return System.getenv(envVarName);
+      }
+      return value;
+   }
+
+   private void importArtifacts(ScanResultsBuildItem scanResults, List<String> availableSecrets, MicrocksDevServicesConfig devServicesConfig, MicrocksContainerStartable s) {
+      String connectionInfo = s.getConnectionInfo();
+
       LoadedArtifacts loadedArtifacts = new LoadedArtifacts();
       log.infof("Importing artifacts into Microcks running at '%s'", connectionInfo);
 
       // First, load the remote artifacts if any.
       if (devServicesConfig.remoteArtifacts().isPresent()) {
          ArtifactsConfiguration remoteArtifactsConfig = devServicesConfig.remoteArtifacts().get();
-         for (String remoteArtifactUrl : remoteArtifactsConfig.primaries()) {
-            log.infof("Load '%s' as primary remote artifact", remoteArtifactUrl);
-            try {
-               MicrocksContainer.downloadAsMainRemoteArtifact(connectionInfo, remoteArtifactUrl);
-            } catch (Exception e) {
-               log.error("Failed to load Remote Artifacts in microcks", e);
-            }
-         }
+         loadRemoteArtifacts(remoteArtifactsConfig.primaries(), availableSecrets, true, connectionInfo);
          if (remoteArtifactsConfig.secondaries().isPresent()) {
-            for (String remoteArtifactUrl : remoteArtifactsConfig.secondaries().get()) {
-               log.infof("Load '%s' as secondary remote artifact", remoteArtifactUrl);
-               try {
-                  MicrocksContainer.downloadAsSecondaryRemoteArtifact(connectionInfo, remoteArtifactUrl);
-               } catch (Exception e) {
-                  log.error("Failed to load Remote Artifacts in microcks", e);
-               }
-            }
+            loadRemoteArtifacts(remoteArtifactsConfig.secondaries().get(), availableSecrets, false, connectionInfo);
          }
       }
       // Then, load or scan the local artifacts if any.
@@ -629,6 +679,44 @@ public class DevServicesMicrocksProcessor {
             log.error("Failed to load Artifacts in microcks", e);
          }
       }
+
+      // Publish the loaded artifacts list so that Hot reload will be able to use it.
+      s.setLoadedPrimaryArtifacts(String.join(",", loadedArtifacts.primaryArtifacts));
+      s.setLoadedSecondaryArtifacts(String.join(",", loadedArtifacts.secondaryArtifacts));
+   }
+
+   private void loadRemoteArtifacts(List<String> remoteArtifactsUrls, List<String> availableSecrets,
+                                    boolean primary, String connectionInfo) {
+      for (String remoteArtifactUrl : remoteArtifactsUrls) {
+         log.infof("Load '%s' as %s remote artifact", remoteArtifactUrl, primary ? "primary" : "secondary");
+
+         String secretName = null;
+         if (remoteArtifactUrl.contains("|")) {
+            String[] parts = remoteArtifactUrl.split("\\|", 2);
+            remoteArtifactUrl = parts[0];
+            secretName = parts[1];
+            if (!availableSecrets.contains(secretName)) {
+               log.warnf("Skipping remote artifact '%s' as its associated secret '%s' is not available", remoteArtifactUrl, secretName);
+               continue;
+            }
+            log.infof("Using secret '%s' for remote artifact '%s'", secretName, remoteArtifactUrl);
+         }
+
+         try {
+            MicrocksContainer.downloadArtifact(connectionInfo, new RemoteArtifact(remoteArtifactUrl, secretName), primary);
+         } catch (Exception e) {
+            log.error("Failed to load Remote Artifacts in microcks", e);
+         }
+      }
+   }
+
+   private void loadArtifact(String connectionInfo, File artifactFile, boolean primary) {
+      try {
+         log.infof("Load '%s' as %s artifact", artifactFile.getName(), primary ? "primary" : "secondary");
+         MicrocksContainer.importArtifact(connectionInfo, artifactFile, primary);
+      } catch (Exception e) {
+         log.errorf("Failed to import %s artifact '%s' in microcks", primary ? "primary" : "secondary", artifactFile.getName(), e);
+      }
    }
 
    private void addToLoadedArtifacts(String artifact, LoadedArtifacts loadedArtifacts, boolean primary) {
@@ -645,7 +733,6 @@ public class DevServicesMicrocksProcessor {
          loadedArtifacts.secondaryArtifacts.add(targetName);
       }
    }
-
 
    private List<String> loadPrimaryArtifacts(String connectionInfo, ScanResultsBuildItem scanResultsBuildItem) throws IOException {
       return loadArtifacts(scanResultsBuildItem.primary(), connectionInfo, true);
@@ -666,17 +753,6 @@ public class DevServicesMicrocksProcessor {
       }
       return loadedArtifacts;
    }
-
-
-   private void loadArtifact(String connectionInfo, File artifactFile, boolean primary) {
-      try {
-         log.infof("Load '%s' as %s artifact", artifactFile.getName(), primary ? "primary" : "secondary");
-         MicrocksContainer.importArtifact(connectionInfo, artifactFile, primary);
-      } catch (Exception e) {
-         log.errorf("Failed to import %s artifact '%s' in microcks", primary ? "primary" : "secondary", artifactFile.getName(), e);
-      }
-   }
-
 
    /**
     * A simple class to keep track of loaded artifacts.
