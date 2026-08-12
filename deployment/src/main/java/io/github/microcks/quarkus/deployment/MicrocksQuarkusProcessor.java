@@ -24,7 +24,7 @@ import io.quarkus.deployment.builditem.FeatureBuildItem;
  */
 class MicrocksQuarkusProcessor {
 
-    private static final String FEATURE = "microcks";
+    static final String FEATURE = "microcks";
 
     @BuildStep
     FeatureBuildItem feature() {
