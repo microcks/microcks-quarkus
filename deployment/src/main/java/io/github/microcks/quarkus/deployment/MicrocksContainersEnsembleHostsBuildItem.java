@@ -15,11 +15,13 @@
  */
 package io.github.microcks.quarkus.deployment;
 
+import io.quarkus.builder.item.MultiBuildItem;
+
 /**
  * A simple bean for holding immutable configuration of Microcks ensemble components hosts.
  * @author laurent
  */
-public final class MicrocksContainersEnsembleHosts {
+public final class MicrocksContainersEnsembleHostsBuildItem extends MultiBuildItem {
 
    private final String microcksHost;
    private final String postmanHost;
@@ -31,10 +33,10 @@ public final class MicrocksContainersEnsembleHosts {
     * @param postmanHost The hostname of the postman-runtime container.
     * @param asyncMinionHost The hostname of the async-minion container.
     */
-   public MicrocksContainersEnsembleHosts(String microcksHost, String postmanHost, String asyncMinionHost) {
-      this.microcksHost = microcksHost;
-      this.postmanHost = postmanHost;
-      this.asyncMinionHost = asyncMinionHost;
+   public MicrocksContainersEnsembleHostsBuildItem(String microcksHost, String postmanHost, String asyncMinionHost) {
+       this.microcksHost = microcksHost;
+       this.postmanHost = postmanHost;
+       this.asyncMinionHost = asyncMinionHost;
    }
 
    public String getMicrocksHost() {

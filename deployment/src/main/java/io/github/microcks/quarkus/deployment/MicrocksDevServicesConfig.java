@@ -27,7 +27,7 @@ import java.util.Optional;
  * @author laurent
  */
 @ConfigGroup
-public interface DevServicesConfig {
+public interface MicrocksDevServicesConfig {
 
    /** Default image name for Microcks container. */
    String MICROCKS_UBER_LATEST = "quay.io/microcks/microcks-uber:latest";
@@ -52,6 +52,12 @@ public interface DevServicesConfig {
      */
    @WithDefault("true")
    boolean hostAccess();
+   /**
+    * Option to disable host access - can be used for issues with kubernetes-client dev services compatability
+    */
+   @WithDefault("true")
+   boolean hostAccess();
+
    /**
     * The container image name to use, for container based DevServices providers.
     * Use an image based on or derived from: {@code quay.io/microcks/microcks-uber:latest}.

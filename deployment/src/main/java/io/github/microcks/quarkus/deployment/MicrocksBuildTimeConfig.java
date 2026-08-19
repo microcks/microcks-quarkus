@@ -42,6 +42,6 @@ public interface MicrocksBuildTimeConfig {
        * <p>
        * DevServices allows Quarkus to automatically start Microcks in dev and test mode.
        */
-      DevServicesConfig devservices();
+      MicrocksDevServicesConfig devservices();
    }
 }
