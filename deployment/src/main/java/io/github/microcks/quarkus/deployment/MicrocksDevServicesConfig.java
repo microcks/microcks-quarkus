@@ -46,12 +46,7 @@ public interface MicrocksDevServicesConfig {
     */
    @WithDefault("true")
    boolean enabled();
-   
-    /**
-     * Option to disable host access - can be used for issues with kubernetes-client dev services compatability
-     */
-   @WithDefault("true")
-   boolean hostAccess();
+
    /**
     * Option to disable host access - can be used for issues with kubernetes-client dev services compatability
     */
