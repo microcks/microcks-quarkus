@@ -519,7 +519,7 @@ public class DevServicesMicrocksProcessor {
       @Override
       public String getConnectionInfo() {
          if (portNumber > 0) {
-            return HTTP_SCHEME + "localhost:" + container.getMappedPort(portNumber);
+            return HTTP_SCHEME + container.getHost() + ":" + container.getMappedPort(portNumber);
          } else {
             return "Isolated";
          }
@@ -541,9 +541,9 @@ public class DevServicesMicrocksProcessor {
 
       Map<String, Function<MicrocksContainerStartable, String>> configFunctions = new HashMap<>();
       configFunctions.put(configPrefix + MicrocksProperties.HTTP_SUFFIX, Startable::getConnectionInfo);
-      configFunctions.put(configPrefix + MicrocksProperties.HTTP_HOST_SUFFIX, s -> "localhost");
+      configFunctions.put(configPrefix + MicrocksProperties.HTTP_HOST_SUFFIX, s -> s.container.getHost());
       configFunctions.put(configPrefix + MicrocksProperties.HTTP_PORT_SUFFIX, s -> s.getConnectionInfo().substring(s.getConnectionInfo().lastIndexOf(":") + 1));
-      configFunctions.put(configPrefix + MicrocksProperties.GRPC_HOST_SUFFIX, s -> "localhost");
+      configFunctions.put(configPrefix + MicrocksProperties.GRPC_HOST_SUFFIX, s -> s.container.getHost());
       configFunctions.put(configPrefix + MicrocksProperties.GRPC_PORT_SUFFIX, s -> s.getGrpcPort().toString());
       configFunctions.put(configPrefix + MicrocksProperties.LOADED_PRIMARY_ARTIFACTS, MicrocksContainerStartable::getLoadedPrimaryArtifacts);
       configFunctions.put(configPrefix + MicrocksProperties.LOADED_SECONDARY_ARTIFACTS, MicrocksContainerStartable::getLoadedSecondaryArtifacts);
