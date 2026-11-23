@@ -21,6 +21,10 @@
       <artifactId>quarkus-arc</artifactId>
     </dependency>
     <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-devservices</artifactId>
+    </dependency>
+    <dependency>
       <groupId>io.github.microcks</groupId>
       <artifactId>microcks-testcontainers</artifactId>
       <version>${microcks-testcontainers.version}</version>
