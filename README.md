@@ -13,9 +13,9 @@ Want to see this extension in action? Check out our [sample application](https:/
 
 ## Build Status
 
-Latest released version is `0.5.0`.
+Latest released version is `0.5.1`.
 
-Current development version is `0.5.1-SNAPSHOT`.
+Current development version is `0.5.2-SNAPSHOT`.
 
 #### Sonarcloud Quality metrics
 
@@ -63,7 +63,7 @@ If you're using Maven:
 <dependency>
   <groupId>io.github.microcks.quarkus</groupId>
   <artifactId>quarkus-microcks</artifactId>
-  <version>0.5.0</version>
+  <version>0.5.1</version>
   <scope>provided</scope>
 </dependency>
 ```
